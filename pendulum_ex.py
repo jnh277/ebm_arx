@@ -4,11 +4,14 @@ import matplotlib.pyplot as plt
 import torch.utils.data as data
 import Models
 
-N = 4000
-batch_size = 64
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")      # use gpu if available
+
+N = 10000
+batch_size = 128
 learning_rate = 0.001
-num_samples = 1024
-num_epochs = 75
+num_samples = 1028
+num_epochs = 400
 stds = torch.zeros((1, 2))
 stds[0, 0] = 0.2
 stds[0, 1] = 0.4
@@ -27,7 +30,7 @@ for i in range(N-1):
     x[1,i+1] = x[1,i] + ts * (-g/L*np.sin(x[0,i]))
 
 
-sig_m = 0.1
+sig_m = 0.2
 y = x[0,:] + np.random.normal(0,sig_m,(N,))
 
 plt.plot(x[0,:])
@@ -49,7 +52,9 @@ dataset = data.TensorDataset(X,Y)
 train_loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 
-network = Models.ARXnet(x_dim=3,y_dim=1,hidden_dim=30)
+network = Models.ARXnet(x_dim=3,y_dim=1,hidden_dim=300)
+
+network.to(device)
 
 optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate)
 
@@ -59,21 +64,21 @@ for epoch in range(num_epochs):
     network.train()  # (set in training mode, this affects BatchNorm and dropout)
     batch_losses = []
     for step, (xs, ys) in enumerate(train_loader):
-        xs = xs # (shape: (batch_size, 1))
-        ys = ys.unsqueeze(1)  # (shape: (batch_size, 1))
+        xs = xs.to(device) # (shape: (batch_size, 1))
+        ys = ys.unsqueeze(1).to(device)  # (shape: (batch_size, 1))
 
         x_features = network.feature_net(xs)  # (shape: (batch_size, hidden_dim))
         scores_gt = network.predictor_net(x_features, ys)  # (shape: (batch_size, 1))
         scores_gt = scores_gt.squeeze(1)  # (shape: (batch_size))
 
         y_samples_zero, q_y_samples, q_ys = Models.sample_gmm_centered(stds, num_samples=num_samples)
-        # y_samples_zero = y_samples_zero.cuda()  # (shape: (num_samples, 1))
+        y_samples_zero = y_samples_zero.to(device)  # (shape: (num_samples, 1))
         y_samples_zero = y_samples_zero.squeeze(1)  # (shape: (num_samples))
-        # q_y_samples = q_y_samples.cuda()  # (shape: (num_samples))
+        q_y_samples = q_y_samples.to(device)  # (shape: (num_samples))
         y_samples = ys + y_samples_zero.unsqueeze(0)  # (shape: (batch_size, num_samples))          # uncenters
-        q_y_samples = q_y_samples.unsqueeze(0) * torch.ones(y_samples.size())  # (shape: (batch_size, num_samples))
+        q_y_samples = q_y_samples.unsqueeze(0) * torch.ones(y_samples.size()).to(device)  # (shape: (batch_size, num_samples))
         q_ys = q_ys[0] * torch.ones(xs.size(0))  # (shape: (batch_size))
-
+        q_ys = q_ys.to(device)
         scores_samples = network.predictor_net(x_features, y_samples)  # (shape: (batch_size, num_samples))
 
         ########################################################################
@@ -102,8 +107,10 @@ for epoch in range(num_epochs):
 plt.plot(epoch_losses_train)
 plt.show()
 
-x_test = torch.cat([0.3*torch.ones((100,1)),0*torch.ones((100,1)),0*torch.ones((100,1))],1)
-y_test = torch.linspace(-1,1,100).unsqueeze(1)
+network.cpu()
+
+x_test = torch.cat([x[0,8]*torch.ones((100,1)),x[0,9]*torch.ones((100,1)),x[0,10]*torch.ones((100,1))],1)
+y_test = torch.linspace(0,1.5,100).unsqueeze(1)
 
 scores = network(x_test,y_test)
 
