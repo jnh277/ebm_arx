@@ -37,13 +37,16 @@ plt.plot(x[0,:])
 plt.plot(y,'r*')
 plt.show()
 
+plt.hist(y-x[0,:])
+plt.show()
+
 X = torch.cat([torch.from_numpy(x[0,:-3]).unsqueeze(1),torch.from_numpy(x[0,1:-2]).unsqueeze(1),torch.from_numpy(x[0,2:-1]).unsqueeze(1)],1).float()
 Y = torch.from_numpy(x[0,3:]).float()
 
 
 # normalise the data
-Y = Y/Y.max()
-X = X/X.max()
+Y = Y/1.0
+X = X/1.0
 
 
 
@@ -87,7 +90,8 @@ for epoch in range(num_epochs):
         loss = -torch.mean(scores_gt - torch.log(q_ys) - torch.log(
             torch.exp(scores_gt - torch.log(q_ys)) + torch.sum(torch.exp(scores_samples - torch.log(q_y_samples)),
                                                                dim=1)))
-
+        if loss.isnan():
+            print('loss is nan')
         loss_value = loss.data.cpu().numpy()
         batch_losses.append(loss_value)
 
