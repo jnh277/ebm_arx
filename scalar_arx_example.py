@@ -14,7 +14,7 @@ N = 4000
 batch_size = 64
 learning_rate = 0.001
 num_samples = 1024
-num_epochs = 100
+num_epochs = 150
 stds = torch.zeros((1, 2))
 # worked well for bimodal
 stds[0, 0] = 0.4
@@ -90,7 +90,7 @@ for epoch in range(num_epochs):
         y_samples_zero = y_samples_zero.squeeze(1)  # (shape: (num_samples))
         q_y_samples = q_y_samples.to(device)  # (shape: (num_samples))
         y_samples = ys + y_samples_zero.unsqueeze(0)  # (shape: (batch_size, num_samples))          # uncenters
-        q_y_samples = q_y_samples.unsqueeze(0) * torch.ones(y_samples.size())  # (shape: (batch_size, num_samples))
+        q_y_samples = q_y_samples.unsqueeze(0) * torch.ones(y_samples.size()).to(device)  # (shape: (batch_size, num_samples))
         q_ys = q_ys[0] * torch.ones(xs.size(0))  # (shape: (batch_size))
         q_ys = q_ys.to(device)
         scores_samples = network.predictor_net(x_features, y_samples)  # (shape: (batch_size, num_samples))
@@ -124,7 +124,7 @@ plt.plot(epoch_losses_train)
 plt.show()
 
 x_test = 0*torch.ones((100,1))
-y_test = torch.linspace(-0.05,0.05,100).unsqueeze(1)
+y_test = torch.linspace(-0.5,0.5,100).unsqueeze(1)
 
 scores = network(x_test,y_test)
 
