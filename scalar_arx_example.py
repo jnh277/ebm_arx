@@ -14,18 +14,16 @@ N = 4000
 batch_size = 64
 learning_rate = 0.001
 num_samples = 1024
-num_epochs = 150
+num_epochs = 100
 stds = torch.zeros((1, 2))
 # worked well for bimodal
 stds[0, 0] = 0.4
 stds[0, 1] = 0.6
 
-noise_form = 'gaussian'            # this can also be 'gaussian', or 'bimodal'
+noise_form = 'bimodal'            # this can also be 'gaussian', or 'bimodal'
 
 # simulate a really simple arx system
 a = 0.95
-# sig_m = 0.1     # works well for bimodal
-sig_m = 0.2
 y0 = 2
 
 y = torch.empty((N,))
@@ -33,6 +31,7 @@ y[0] = y0
 
 
 if noise_form == 'bimodal': # bimodal noise
+    sig_m = 0.1
     for i in range(N-1):
         # y[i+1] = a*y[i]+ sig_m*torch.randn((1,))
         if torch.rand((1,)) > 0.5:
@@ -40,10 +39,12 @@ if noise_form == 'bimodal': # bimodal noise
         else:
             y[i + 1] = a * y[i] - 0.2 + sig_m * torch.randn((1,))
 elif noise_form == 'cauchy': # cauchy noise
+    sig_m = 0.2
     for i in range(N-1):
         y[i+1] = a*y[i]+ sig_m*torch.from_numpy(np.random.standard_t(1, (1,)))
 
 elif noise_form == 'gaussian': # gaussian
+    sig_m = 0.2
     for i in range(N-1):
         y[i+1] = a*y[i] + torch.from_numpy(np.random.normal(0,sig_m,(1,)))
 
