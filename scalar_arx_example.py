@@ -14,7 +14,7 @@ N = 4000
 batch_size = 64
 learning_rate = 0.001
 num_samples = 1024
-num_epochs = 75
+num_epochs = 150
 stds = torch.zeros((1, 2))
 # worked well for bimodal
 stds[0, 0] = 0.4
