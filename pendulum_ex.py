@@ -30,7 +30,7 @@ for i in range(N-1):
     x[1,i+1] = x[1,i] + ts * (-g/L*np.sin(x[0,i]))
 
 
-sig_m = 0.2
+sig_m = 0.05
 y = x[0,:] + np.random.normal(0,sig_m,(N,))
 
 plt.plot(x[0,:])
@@ -55,7 +55,7 @@ dataset = data.TensorDataset(X,Y)
 train_loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 
-network = Models.ARXnet(x_dim=3,y_dim=1,hidden_dim=300)
+network = Models.ARXnet(x_dim=3,y_dim=1,hidden_dim=50)
 
 network.to(device)
 
@@ -114,7 +114,7 @@ plt.show()
 network.cpu()
 
 x_test = torch.cat([x[0,8]*torch.ones((100,1)),x[0,9]*torch.ones((100,1)),x[0,10]*torch.ones((100,1))],1)
-y_test = torch.linspace(0,1.5,100).unsqueeze(1)
+y_test = torch.linspace(0.9,1.1,100).unsqueeze(1)
 
 scores = network(x_test,y_test)
 
@@ -124,7 +124,7 @@ plt.show()
 
 
 # how to make predictions yhat??
-yhat = torch.zeros((N-3,))
+yhat = torch.tensor(X[:,2].data)
 yhat.requires_grad = True
 pred_optimizer = torch.optim.Adam([yhat], lr=0.01)
 max_steps = 1000
