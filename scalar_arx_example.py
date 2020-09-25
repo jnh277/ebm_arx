@@ -123,7 +123,7 @@ network.cpu()
 plt.plot(epoch_losses_train)
 plt.show()
 
-x_test = 3*torch.ones((100,1))
+x_test = 0*torch.ones((100,1))
 y_test = torch.linspace(-0.5,0.5,100).unsqueeze(1)
 
 scores = network(x_test,y_test)
