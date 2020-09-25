@@ -14,18 +14,18 @@ N = 4000
 batch_size = 64
 learning_rate = 0.001
 num_samples = 1024
-num_epochs = 150
+num_epochs = 75
 stds = torch.zeros((1, 2))
 # worked well for bimodal
 stds[0, 0] = 0.4
 stds[0, 1] = 0.6
 
-noise_form = 'cauchy'            # this can also be 'gaussian', or 'bimodal'
+noise_form = 'gaussian'            # this can also be 'gaussian', or 'bimodal'
 
 # simulate a really simple arx system
 a = 0.95
 # sig_m = 0.1     # works well for bimodal
-sig_m = 0.3
+sig_m = 0.2
 y0 = 2
 
 y = torch.empty((N,))
@@ -45,7 +45,7 @@ elif noise_form == 'cauchy': # cauchy noise
 
 elif noise_form == 'gaussian': # gaussian
     for i in range(N-1):
-        y[i+1] = a*y[i]+ sig_m*torch.from_numpy(np.random.normal((1,)))
+        y[i+1] = a*y[i] + torch.from_numpy(np.random.normal(0,sig_m,(1,)))
 
 # normalise the data
 y = y/2
@@ -123,12 +123,13 @@ network.cpu()
 plt.plot(epoch_losses_train)
 plt.show()
 
-x_test = 0*torch.ones((100,1))
+x_test = 3*torch.ones((100,1))
 y_test = torch.linspace(-0.5,0.5,100).unsqueeze(1)
 
 scores = network(x_test,y_test)
 
-plt.plot(y_test.detach(),scores.exp().detach())
+# the x2 on the x axis is to undo the scaling performed that the beginning of script
+plt.plot(2*y_test.detach(),scores.exp().detach())
 plt.title("learned distribution")
 plt.show()
 
