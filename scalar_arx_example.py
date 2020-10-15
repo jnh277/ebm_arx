@@ -10,17 +10,17 @@ import numpy as np
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")      # use gpu if available
 
-N = 4000
+N = 6000
 batch_size = 64
 learning_rate = 0.001
 num_samples = 1024
-num_epochs = 75
+num_epochs = 100
 stds = torch.zeros((1, 2))
 # worked well for bimodal
 stds[0, 0] = 0.4
 stds[0, 1] = 0.6
 
-noise_form = 'gaussian'            # this can also be 'gaussian', or 'bimodal'
+noise_form = 'bimodal'            # this can also be 'gaussian', or 'bimodal'
 
 # simulate a really simple arx system
 a = 0.95
@@ -36,9 +36,9 @@ if noise_form == 'bimodal': # bimodal noise
     for i in range(N-1):
         # y[i+1] = a*y[i]+ sig_m*torch.randn((1,))
         if torch.rand((1,)) > 0.5:
-            y[i + 1] = a * y[i] + 0.2 + sig_m * torch.randn((1,))
+            y[i + 1] = a * y[i] + 0.4 + sig_m * torch.randn((1,))
         else:
-            y[i + 1] = a * y[i] - 0.2 + sig_m * torch.randn((1,))
+            y[i + 1] = a * y[i] - 0.4 + sig_m * torch.randn((1,))
 elif noise_form == 'cauchy': # cauchy noise
     for i in range(N-1):
         y[i+1] = a*y[i]+ sig_m*torch.from_numpy(np.random.standard_t(1, (1,)))
@@ -129,8 +129,10 @@ y_test = torch.linspace(-0.5,0.5,100).unsqueeze(1)
 scores = network(x_test,y_test)
 
 # the x2 on the x axis is to undo the scaling performed that the beginning of script
-plt.plot(2*y_test.detach(),scores.exp().detach())
-plt.title("learned distribution")
+plt.plot(2*y_test.detach(),scores.exp().detach()/1.175e7,linewidth=3)
+plt.hist(2*(y[1:]-a*y[:-1]),bins=30, range=(-1.0,1.0))
+plt.title("noise distribution")
+plt.legend(['learned distribution','true distribution'])
 plt.show()
 
 
@@ -148,6 +150,7 @@ for step in range(max_steps):
     pred_optimizer.zero_grad()
     neg_score.backward()
     pred_optimizer.step()
+
 
 plt.plot(Y.detach())
 plt.plot(yhat.detach())
