@@ -121,3 +121,24 @@ if __name__ == "__main__":
     plt.plot(y_test.detach(),scores.exp().detach()/denom)
     plt.title("learned Gaussian distribution")
     plt.show()
+
+    # how to make predictions
+    yhat = X[:100,0].clone().detach()
+    # yhat = torch.zeros((N-1,))
+    yhat.requires_grad = True
+    pred_optimizer = torch.optim.Adam([yhat], lr=0.01)
+    max_steps = 1000
+    #
+    for step in range(max_steps):
+        score = network(X[:100,:],yhat.unsqueeze(1))
+        # find the point that maximises the score
+        neg_score = (-1*score).sum()
+        pred_optimizer.zero_grad()
+        neg_score.backward()
+        pred_optimizer.step()
+
+
+    plt.plot(Y[:100].detach())
+    plt.plot(yhat.detach())
+    plt.legend(['Meausrements','Predictions'])
+    plt.show()

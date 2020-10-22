@@ -73,8 +73,6 @@ dataset = data.TensorDataset(X,Y)
 train_loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 
-
-
 network = Models.ScalarNet(hidden_dim=50)
 
 network.to(device)
