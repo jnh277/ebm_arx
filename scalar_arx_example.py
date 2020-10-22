@@ -20,7 +20,7 @@ stds = torch.zeros((1, 2))
 stds[0, 0] = 0.4
 stds[0, 1] = 0.6
 
-noise_form = 'bimodal'            # this can also be 'gaussian', or 'bimodal'
+noise_form = 'bounded_gauss'            # this can also be 'gaussian', or 'bimodal'
 
 # simulate a really simple arx system
 a = 0.95
@@ -28,32 +28,40 @@ y0 = 2
 
 y = torch.empty((N,))
 y[0] = y0
-
+e = torch.zeros((N,))
 
 if noise_form == 'bimodal': # bimodal noise
     sig_m = 0.1
     for i in range(N-1):
-        # y[i+1] = a*y[i]+ sig_m*torch.randn((1,))
         if torch.rand((1,)) > 0.5:
-            y[i + 1] = a * y[i] + 0.4 + sig_m * torch.randn((1,))
+            e[i+1] = + 0.4 + sig_m * torch.randn((1,))
         else:
-            y[i + 1] = a * y[i] - 0.4 + sig_m * torch.randn((1,))
+            e[i + 1] = - 0.4 + sig_m * torch.randn((1,))
+        y[i + 1] = a * y[i] + e[i+1]
 elif noise_form == 'cauchy': # cauchy noise
     sig_m = 0.2
     for i in range(N-1):
-        y[i+1] = a*y[i]+ sig_m*torch.from_numpy(np.random.standard_t(1, (1,)))
+        e[i+1] = sig_m*torch.from_numpy(np.random.standard_t(1, (1,)))
+        y[i+1] = a*y[i]+ e[i+1]
 
 elif noise_form == 'gaussian': # gaussian
     sig_m = 0.2
     for i in range(N-1):
-        y[i+1] = a*y[i] + torch.from_numpy(np.random.normal(0,sig_m,(1,)))
+        e[i+1] = torch.from_numpy(np.random.normal(0,sig_m,(1,)))
+        y[i+1] = a*y[i] + e[i+1]
+elif noise_form == 'bounded_gauss':
+    sig_m = 0.2
+    for i in range(N-1):
+        e[i + 1] = max(-0.3,min(0.3,torch.from_numpy(np.random.normal(0, sig_m, (1,)))))
+        y[i + 1] = a * y[i] + e[i + 1]
 
 # normalise the data
-y = y/2
-
-plt.hist(y[1:]-a*y[:-1],bins=30, range=(-.5,0.5))
-plt.title('noise distribution')
-plt.show()
+scale = 2
+y = y/scale
+e = e/scale
+# plt.hist(y[1:]-a*y[:-1],bins=30, range=(-.5,0.5))
+# plt.title('noise distribution')
+# plt.show()
 
 # convert into ML inputs and outputs
 X = y[:-1]
@@ -97,11 +105,13 @@ for epoch in range(num_epochs):
         scores_samples = network.predictor_net(x_features, y_samples)  # (shape: (batch_size, num_samples))
 
         ########################################################################
-        # compute loss:
+        # compute loss: NCE loss (eq 12) in how train your EBM model
         ########################################################################
         loss = -torch.mean(scores_gt - torch.log(q_ys) - torch.log(
             torch.exp(scores_gt - torch.log(q_ys)) + torch.sum(torch.exp(scores_samples - torch.log(q_y_samples)),
                                                                dim=1)))
+        # if torch.isnan(loss):
+        #     print('bad')
 
         loss_value = loss.data.cpu().numpy()
         batch_losses.append(loss_value)
@@ -124,14 +134,18 @@ network.cpu()
 plt.plot(epoch_losses_train)
 plt.show()
 
-x_test = 0*torch.ones((100,1))
+x0 = 0.0
+x_test = x0*torch.ones((100,1))
 y_test = torch.linspace(-0.5,0.5,100).unsqueeze(1)
 
 scores = network(x_test,y_test)
+dt = y_test[1]-y_test[0]
+denom = scale*dt * scores.exp().sum().detach()
+# denom = 1.0
 
 # the x2 on the x axis is to undo the scaling performed that the beginning of script
-plt.plot(2*y_test.detach(),scores.exp().detach()/1.175e7,linewidth=3)
-plt.hist(2*(y[1:]-a*y[:-1]),bins=30, range=(-1.0,1.0))
+plt.hist(scale*(e+x0),bins=30, range=(-1.0,1.0), density=True)
+plt.plot(scale*y_test.detach(),scores.exp().detach()/denom,linewidth=3)
 plt.title("noise distribution")
 plt.legend(['learned distribution','true distribution'])
 plt.show()

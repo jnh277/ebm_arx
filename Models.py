@@ -118,3 +118,45 @@ class ARXnet(nn.Module):
 
         x_feature = self.feature_net(x) # (shape: (batch_size, hidden_dim))
         return self.predictor_net(x_feature, y)
+
+class PredictorNet(nn.Module):
+    def __init__(self, y_dim=1, x_dim=1, hidden_dims=[50,50,50,50]):
+        super().__init__()
+
+        self.fc1_y = nn.Linear(x_dim, hidden_dims[0])
+        self.fc1_x = nn.Linear(y_dim, hidden_dims[0])
+
+        self.fc1_xy = nn.Linear(2*hidden_dims[0], hidden_dims[1])
+        self.fc2_xy = nn.Linear(hidden_dims[1], hidden_dims[2])
+        self.fc3_xy = nn.Linear(hidden_dims[2], hidden_dims[3])
+        self.fc4_xy = nn.Linear(hidden_dims[3], 1)
+
+    def forward(self, x, y):
+        # (x_feature has shape: (batch_size, hidden_dim))
+        # (y has shape (batch_size, num_samples)) (num_sampes==1 when running on (x_i, y_i))
+
+        if y.dim() == 1:
+            y = y.view(-1,1)
+
+        batch_size, num_samples = y.shape
+
+        x_feature = self.fc1_x(x)
+        # Replicate for when there are many samples of y
+        x_feature = x_feature.view(batch_size, 1, -1).expand(-1, num_samples, -1) # (shape: (batch_size, num_samples, hidden_dim))
+
+        # resize to batch dimension
+        x_feature = x_feature.reshape(batch_size*num_samples, -1) # (shape: (batch_size*num_samples, hidden_dim))
+        y = y.reshape(batch_size*num_samples, -1) # (shape: (batch_size*num_samples, 1))
+
+        y_feature = torch.tanh(self.fc1_y(y)) # (shape: (batch_size*num_samples, hidden_dim))
+
+        xy_feature = torch.cat([x_feature, y_feature], 1) # (shape: (batch_size*num_samples, 2*hidden_dim))
+
+        xy_feature = torch.tanh(self.fc1_xy(xy_feature)) # (shape: (batch_size*num_samples, hidden_dim))
+        xy_feature = torch.tanh(self.fc2_xy(xy_feature)) + xy_feature # (shape: (batch_size*num_samples, hidden_dim))
+        xy_feature = torch.tanh(self.fc3_xy(xy_feature)) + xy_feature # (shape: (batch_size*num_samples, hidden_dim))
+        score = self.fc4_xy(xy_feature) # (shape: (batch_size*num_samples, 1))
+
+        score = score.view(batch_size, num_samples) # (shape: (batch_size, num_samples))
+
+        return score
