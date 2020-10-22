@@ -35,7 +35,7 @@ def sample_gmm_centered(std, num_samples=1):
 
     return x_centered, prob_dens, prob_dens_zero
 
-class ScalarPredictorNet(nn.Module):
+class PredictorNet(nn.Module):
     def __init__(self, y_dim, hidden_dim=10):
         super().__init__()
 
@@ -75,7 +75,7 @@ class ScalarPredictorNet(nn.Module):
 
         return score
 
-class ScalarFeatureNet(nn.Module):
+class FeatureNet(nn.Module):
     def __init__(self, x_dim=1, hidden_dim=10):
         super().__init__()
 
@@ -95,8 +95,8 @@ class ScalarNet(nn.Module):
         super(ScalarNet, self).__init__()
         input_dim = 1
 
-        self.feature_net = ScalarFeatureNet(input_dim, hidden_dim)
-        self.predictor_net = ScalarPredictorNet(input_dim, hidden_dim)
+        self.feature_net = FeatureNet(input_dim, hidden_dim)
+        self.predictor_net = PredictorNet(input_dim, hidden_dim)
 
     def forward(self, x, y):
         # (x has shape (batch_size, 1))
@@ -109,8 +109,8 @@ class ARXnet(nn.Module):
     def __init__(self,x_dim=2, y_dim=1, hidden_dim=10):
         super(ARXnet, self).__init__()
 
-        self.feature_net = ScalarFeatureNet(x_dim, hidden_dim)
-        self.predictor_net = ScalarPredictorNet(y_dim, hidden_dim)
+        self.feature_net = FeatureNet(x_dim, hidden_dim)
+        self.predictor_net = PredictorNet(y_dim, hidden_dim)
 
     def forward(self, x, y):
         # (x has shape (batch_size, input_dim))
@@ -119,44 +119,67 @@ class ARXnet(nn.Module):
         x_feature = self.feature_net(x) # (shape: (batch_size, hidden_dim))
         return self.predictor_net(x_feature, y)
 
-class PredictorNet(nn.Module):
-    def __init__(self, y_dim=1, x_dim=1, hidden_dims=[50,50,50,50]):
-        super().__init__()
 
-        self.fc1_y = nn.Linear(x_dim, hidden_dims[0])
-        self.fc1_x = nn.Linear(y_dim, hidden_dims[0])
+def NCE_loss(xs,ys,network,stds, num_samples,device=torch.device("cpu")):
+    x_features = network.feature_net(xs)  # (shape: (batch_size, hidden_dim))
+    scores_gt = network.predictor_net(x_features, ys)  # (shape: (batch_size, 1))
+    scores_gt = scores_gt.squeeze(1)  # (shape: (batch_size))
 
-        self.fc1_xy = nn.Linear(2*hidden_dims[0], hidden_dims[1])
-        self.fc2_xy = nn.Linear(hidden_dims[1], hidden_dims[2])
-        self.fc3_xy = nn.Linear(hidden_dims[2], hidden_dims[3])
-        self.fc4_xy = nn.Linear(hidden_dims[3], 1)
+    y_samples_zero, q_y_samples, q_ys = sample_gmm_centered(stds, num_samples=num_samples)
+    y_samples_zero = y_samples_zero.to(device)  # (shape: (num_samples, 1))
+    y_samples_zero = y_samples_zero.squeeze(1)  # (shape: (num_samples))
+    q_y_samples = q_y_samples.to(device)  # (shape: (num_samples))
+    y_samples = ys + y_samples_zero.unsqueeze(0)  # (shape: (batch_size, num_samples))          # uncenters
+    q_y_samples = q_y_samples.unsqueeze(0) * torch.ones(y_samples.size()).to(device)  # (shape: (batch_size, num_samples))
+    q_ys = q_ys[0] * torch.ones(xs.size(0)).to(device)  # (shape: (batch_size))
 
-    def forward(self, x, y):
-        # (x_feature has shape: (batch_size, hidden_dim))
-        # (y has shape (batch_size, num_samples)) (num_sampes==1 when running on (x_i, y_i))
+    scores_samples = network.predictor_net(x_features, y_samples)  # (shape: (batch_size, num_samples))
 
-        if y.dim() == 1:
-            y = y.view(-1,1)
-
-        batch_size, num_samples = y.shape
-
-        x_feature = self.fc1_x(x)
-        # Replicate for when there are many samples of y
-        x_feature = x_feature.view(batch_size, 1, -1).expand(-1, num_samples, -1) # (shape: (batch_size, num_samples, hidden_dim))
-
-        # resize to batch dimension
-        x_feature = x_feature.reshape(batch_size*num_samples, -1) # (shape: (batch_size*num_samples, hidden_dim))
-        y = y.reshape(batch_size*num_samples, -1) # (shape: (batch_size*num_samples, 1))
-
-        y_feature = torch.tanh(self.fc1_y(y)) # (shape: (batch_size*num_samples, hidden_dim))
-
-        xy_feature = torch.cat([x_feature, y_feature], 1) # (shape: (batch_size*num_samples, 2*hidden_dim))
-
-        xy_feature = torch.tanh(self.fc1_xy(xy_feature)) # (shape: (batch_size*num_samples, hidden_dim))
-        xy_feature = torch.tanh(self.fc2_xy(xy_feature)) + xy_feature # (shape: (batch_size*num_samples, hidden_dim))
-        xy_feature = torch.tanh(self.fc3_xy(xy_feature)) + xy_feature # (shape: (batch_size*num_samples, hidden_dim))
-        score = self.fc4_xy(xy_feature) # (shape: (batch_size*num_samples, 1))
-
-        score = score.view(batch_size, num_samples) # (shape: (batch_size, num_samples))
-
-        return score
+    ########################################################################
+    # compute loss:
+    ########################################################################
+    loss = -torch.mean(scores_gt - torch.log(q_ys) - torch.log(
+        torch.exp(scores_gt - torch.log(q_ys)) + torch.sum(torch.exp(scores_samples - torch.log(q_y_samples)),
+                                                           dim=1)))
+    return loss
+# class PredictorNet(nn.Module):
+#     def __init__(self, y_dim=1, x_dim=1, hidden_dims=[50,50,50,50]):
+#         super().__init__()
+#
+#         self.fc1_y = nn.Linear(x_dim, hidden_dims[0])
+#         self.fc1_x = nn.Linear(y_dim, hidden_dims[0])
+#
+#         self.fc1_xy = nn.Linear(2*hidden_dims[0], hidden_dims[1])
+#         self.fc2_xy = nn.Linear(hidden_dims[1], hidden_dims[2])
+#         self.fc3_xy = nn.Linear(hidden_dims[2], hidden_dims[3])
+#         self.fc4_xy = nn.Linear(hidden_dims[3], 1)
+#
+#     def forward(self, x, y):
+#         # (x_feature has shape: (batch_size, hidden_dim))
+#         # (y has shape (batch_size, num_samples)) (num_sampes==1 when running on (x_i, y_i))
+#
+#         if y.dim() == 1:
+#             y = y.view(-1,1)
+#
+#         batch_size, num_samples = y.shape
+#
+#         x_feature = self.fc1_x(x)
+#         # Replicate for when there are many samples of y
+#         x_feature = x_feature.view(batch_size, 1, -1).expand(-1, num_samples, -1) # (shape: (batch_size, num_samples, hidden_dim))
+#
+#         # resize to batch dimension
+#         x_feature = x_feature.reshape(batch_size*num_samples, -1) # (shape: (batch_size*num_samples, hidden_dim))
+#         y = y.reshape(batch_size*num_samples, -1) # (shape: (batch_size*num_samples, 1))
+#
+#         y_feature = torch.tanh(self.fc1_y(y)) # (shape: (batch_size*num_samples, hidden_dim))
+#
+#         xy_feature = torch.cat([x_feature, y_feature], 1) # (shape: (batch_size*num_samples, 2*hidden_dim))
+#
+#         xy_feature = torch.tanh(self.fc1_xy(xy_feature)) # (shape: (batch_size*num_samples, hidden_dim))
+#         xy_feature = torch.tanh(self.fc2_xy(xy_feature)) + xy_feature # (shape: (batch_size*num_samples, hidden_dim))
+#         xy_feature = torch.tanh(self.fc3_xy(xy_feature)) + xy_feature # (shape: (batch_size*num_samples, hidden_dim))
+#         score = self.fc4_xy(xy_feature) # (shape: (batch_size*num_samples, 1))
+#
+#         score = score.view(batch_size, num_samples) # (shape: (batch_size, num_samples))
+#
+#         return score
