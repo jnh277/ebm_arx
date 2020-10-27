@@ -24,12 +24,12 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")      # u
 
 # ---- Main script ----
 if __name__ == "__main__":
-    data = pd.read_csv('./data/cascadedTanksBenchmark/dataBenchmark.csv')
+    tankdata = pd.read_csv('./data/cascadedTanksBenchmark/dataBenchmark.csv')
 
-    uEst = data['uEst'].to_numpy()
-    yEst = data['yEst'].to_numpy()
-    uVal = data['uVal'].to_numpy()
-    yVal = data['yVal'].to_numpy()
+    uEst = tankdata['uEst'].to_numpy()
+    yEst = tankdata['yEst'].to_numpy()
+    uVal = tankdata['uVal'].to_numpy()
+    yVal = tankdata['yVal'].to_numpy()
 
     u_mean = uEst.mean()
     u_std = uEst.std()
@@ -43,9 +43,12 @@ if __name__ == "__main__":
     uVal = (uVal - u_mean) / u_std
     yVal = (yVal - y_mean) / y_std
 
-    order = [3, 3]
+    order = [4, 3]
+    max_delay = np.max((order[0],order[1]-1))
     phi_est = build_phi_matrix(yEst, order, uEst)
     phi_val = build_phi_matrix(yVal, order, uVal)
+    yEst = yEst[max_delay:]
+    yVal = yVal[max_delay:]
 
     N = len(yEst)
     N_test = len(yVal)
@@ -53,7 +56,7 @@ if __name__ == "__main__":
     batch_size = 128
     learning_rate = 0.001
     num_samples = 512
-    num_epochs = 100
+    num_epochs = 400
     stds = torch.zeros((1, 2))
     stds[0, 0] = 0.1
     stds[0, 1] = 0.2
@@ -63,9 +66,10 @@ if __name__ == "__main__":
     train_loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 
-    network = Models.ARXnet(x_dim=np.sum(order),y_dim=1,hidden_dim=50)
-    network.to(device)
+    network = Models.ARXnet(x_dim=np.sum(order),y_dim=1,hidden_dim=75)
+    network.double().to(device)
     optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=300, gamma=0.1)
 
     epoch_losses_train = []
 
@@ -90,6 +94,7 @@ if __name__ == "__main__":
 
             # print("max_score_samp = {} ,  max_score = {}".format(scores_samples.max().item(), scores_gt.max().item()))
 
+        scheduler.step()
         epoch_loss = np.mean(batch_losses)
         epoch_losses_train.append(epoch_loss)
         print('Epoch: {0} train loss: {1}'.format(epoch,epoch_loss))
@@ -101,8 +106,8 @@ if __name__ == "__main__":
     plt.xlabel('epoch')
     plt.show()
 
-    x_test = 0*torch.ones((100,4))
-    y_test = torch.linspace(-1,1,100).unsqueeze(1)
+    x_test = 0*torch.ones((100,np.sum(order))).double()
+    y_test = torch.linspace(-0.1,0.1,100).unsqueeze(1).double()
 
     scores = network(x_test,y_test)
     dt = y_test[1]-y_test[0]
@@ -117,31 +122,43 @@ if __name__ == "__main__":
 
     # make baseline predictions of test data set using least squares
     estim_param, _resid, _rank, _s = linalg.lstsq(phi_est, yEst)
-    mse_baseline = np.mean((phi_val @ estim_param - yVal) ** 2)
+    lsq_pred = phi_val @ estim_param
+    mse_baseline = np.mean((lsq_pred - yVal) ** 2)
 
     # make predictions of test data set using trained EBM NN
-    X_test = torch.from_numpy(phi_val).float()
-    Y_test = torch.from_numpy(yVal).float()
+    X_test = torch.from_numpy(phi_val).double()
+    Y_test = torch.from_numpy(yVal).double()
 
     yhat = X_test[:,0].clone().detach()
     # yhat = torch.zeros((N-1,))
     yhat.requires_grad = True
     pred_optimizer = torch.optim.Adam([yhat], lr=0.01)
-    max_steps = 200
+
+    max_steps = 100
     #
+    score_save = []
+    score_save2 = np.zeros((len(yhat),max_steps))
     for step in range(max_steps):
         score = network(X_test,yhat.unsqueeze(1))
         # find the point that maximises the score
+        score_save.append(score.sum().item())
+        score_save2[:,step] = score.squeeze().detach()
         neg_score = (-1*score).sum()
         pred_optimizer.zero_grad()
         neg_score.backward()
         pred_optimizer.step()
 
+    plt.plot(score_save)
+    plt.title('Prediction log likelihood')
+    plt.show()
+
+    # min(abs(yhat-X_test[:,0]))
 
     plt.plot(Y_test.detach())
     plt.plot(yhat.detach())
-    plt.legend(['Meausrements','Predictions'])
-    plt.title('Test set predictions')
+    plt.plot(lsq_pred,ls='--')
+    plt.legend(['Meausrements','Predictions','baseline'])
+    plt.title('cascaded tanks validation data')
     plt.xlabel('t')
     plt.ylabel('y')
     plt.show()

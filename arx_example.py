@@ -89,8 +89,8 @@ if __name__ == "__main__":
 
     # Normalise the data
     scale = Y.std(0)
-    X = torch.from_numpy(X / scale).float()
-    Y = torch.from_numpy(Y / scale).float()
+    X = torch.from_numpy(X / scale).double()
+    Y = torch.from_numpy(Y / scale).double()
     E = E/scale
 
     dataset = data.TensorDataset(X, Y)
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
 
     network = Models.ARXnet(x_dim=4,y_dim=1,hidden_dim=100)
-    network.to(device)
+    network.double().to(device)
     optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate)
 
     epoch_losses_train = []
@@ -135,8 +135,8 @@ if __name__ == "__main__":
     plt.xlabel('epoch')
     plt.show()
 
-    x_test = 0*torch.ones((100,4))
-    y_test = torch.linspace(-1,1,100).unsqueeze(1)
+    x_test = 0*torch.ones((100,4)).double()
+    y_test = torch.linspace(-1,1,100).unsqueeze(1).double()
 
     scores = network(x_test,y_test)
     dt = y_test[1]-y_test[0]
@@ -161,8 +161,8 @@ if __name__ == "__main__":
     mse_baseline = np.mean((X_test @ estim_param - Y_test) ** 2)
 
     # make predictions of test data set using trained EBM NN
-    X_test = torch.from_numpy(X_test).float()
-    Y_test = torch.from_numpy(Y_test).float()
+    X_test = torch.from_numpy(X_test).double()
+    Y_test = torch.from_numpy(Y_test).double()
 
     yhat = X_test[:,0].clone().detach()
     # yhat = torch.zeros((N-1,))
@@ -170,13 +170,30 @@ if __name__ == "__main__":
     pred_optimizer = torch.optim.Adam([yhat], lr=0.01)
     max_steps = 1000
     #
+    score_save = []
+    score_save2 = np.zeros((len(yhat),max_steps))
     for step in range(max_steps):
         score = network(X_test,yhat.unsqueeze(1))
         # find the point that maximises the score
+        score_save.append(score.sum().item())
+        score_save2[:,step] = score.squeeze().detach()
         neg_score = (-1*score).sum()
         pred_optimizer.zero_grad()
         neg_score.backward()
         pred_optimizer.step()
+
+
+    diff = (yhat - X_test[:,0]).detach().numpy()
+    if any(abs(diff)<1e-10):
+        print('not all predictions converged')
+    ind = np.where(abs(diff) == min(abs(diff)))
+
+    plt.plot(score_save[:100])
+    plt.title('score during prediction stage')
+    plt.show()
+
+    plt.plot(score_save2.T)
+    plt.show()
 
 
     plt.plot(Y_test.detach())
