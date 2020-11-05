@@ -6,6 +6,7 @@ import torch.utils.data as data
 import matplotlib.pyplot as plt
 import Models
 import scipy.linalg as linalg
+import scipy.stats as stats
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")      # use gpu if available
 
@@ -73,22 +74,25 @@ class GenerateARXData(object):
 
 # ---- Main script ----
 if __name__ == "__main__":
+    torch.manual_seed(13)
+
     N = 1000
     N_test = 200
     batch_size = 128
     learning_rate = 0.001
     num_samples = 512
     num_epochs = 100
-    stds = torch.zeros((1, 2))
+    stds = torch.zeros((1, 3))
     stds[0, 0] = 0.2
     stds[0, 1] = 0.4
+    stds[0, 2] = 1.0
     noise_form = 'gaussian'
 
     dataGen = GenerateARXData(noise_form=noise_form)
     X, Y, E = dataGen(N, 1)
 
     # Normalise the data
-    scale = Y.std(0)
+    scale = Y.max()
     X = torch.from_numpy(X / scale).double()
     Y = torch.from_numpy(Y / scale).double()
     E = E/scale
@@ -208,3 +212,36 @@ if __name__ == "__main__":
     print('Test MSE')
     print('Least squares', mse_baseline)
     print('EBM NN:', mse.item())
+
+    yhat_init, yhat_samples, scores_samples = Models.init_predict(X_test.double(),
+                                                                  yhat.clone().detach().double().unsqueeze(1),
+                                                                  network.double(), 2028, [-1.0, 1.0])
+
+    scores = scores_samples.detach().exp().numpy()
+    scores_max = np.max(scores,1)
+    scores = scores / scores_max.reshape(-1,1)
+    plt.contour(np.arange(1, len(Y_test)+1), scale*np.linspace(-1, 1, 2028), scores.T, 30)
+    plt.plot(scale * Y_test.detach(), color='red', ls='None', marker='*')
+    plt.xlabel('t', fontsize=20)
+    plt.ylabel('y', fontsize=20)
+    plt.xlim([165, 180])
+    plt.legend(['measured', 'predicted $p(Y_t=y_t | X_t = x_t$'])
+    plt.show()
+
+    ind = 175
+    xt = scale*np.linspace(-1, 1, 2028)
+    mu = scale*(torch.tensor([-0.7,1.5,0.5,1.0]) * X_test[ind,:]).sum()
+    p_true = stats.norm(mu, 0.3).pdf(xt)
+
+
+
+    dt = xt[1]-xt[0]
+    denom = scores_samples[ind].exp().detach().sum()*dt
+    plt.plot(xt,p_true,linewidth=3)
+    plt.fill_between(xt,p_true,0*p_true,alpha=0.3)
+    plt.plot(xt,scores_samples[ind].exp().detach()/denom,linewidth=3,ls='--')
+    plt.axvline(Y_test[ind],ls='--',color='k',linewidth=3)
+    plt.xlabel('$y_{175}$',fontsize=20)
+    plt.ylabel('$p(Y_{175}=y_{175}|X_{175}=x_{175})$',fontsize=20)
+    plt.legend(['True','Estimated','measurement'])
+    plt.show()

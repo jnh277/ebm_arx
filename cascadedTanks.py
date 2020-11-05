@@ -5,6 +5,7 @@ import torch.utils.data as data
 import matplotlib.pyplot as plt
 import Models
 import scipy.linalg as linalg
+from sklearn.model_selection import train_test_split
 
 def build_phi_matrix(obs,order,inputs):
     "Builds the regressor matrix"
@@ -31,17 +32,27 @@ if __name__ == "__main__":
     uVal = tankdata['uVal'].to_numpy()
     yVal = tankdata['yVal'].to_numpy()
 
-    u_mean = uEst.mean()
-    u_std = uEst.std()
+    u_max = max(uEst.max(),uVal.max())
+    u_min = min(uEst.min(),uVal.min())
+    y_max = max(yEst.max(),yVal.max())
+    y_min = min(yEst.min(),yVal.min())
 
-    y_mean = yEst.mean()
-    y_std = yEst.std()
+    uEst = (uEst - u_min) / (u_max - u_min) * 2 - 1
+    uVal = (uVal - u_min) / (u_max - u_min) * 2 - 1
 
-    uEst = (uEst - u_mean) / u_std
-    yEst = (yEst - y_mean) / y_std
-
-    uVal = (uVal - u_mean) / u_std
-    yVal = (yVal - y_mean) / y_std
+    yEst = (yEst - y_min) / (y_max - y_min) * 2 - 1
+    yVal = (yVal - y_min) / (y_max - y_min) * 2 - 1
+    # u_mean = uEst.mean()
+    # u_std = uEst.std()
+    #
+    # y_mean = yEst.mean()
+    # y_std = yEst.std()
+    #
+    # uEst = (uEst - u_mean) / u_std
+    # yEst = (yEst - y_mean) / y_std
+    #
+    # uVal = (uVal - u_mean) / u_std
+    # yVal = (yVal - y_mean) / y_std
 
     order = [4, 3]
     max_delay = np.max((order[0],order[1]-1))
@@ -107,7 +118,7 @@ if __name__ == "__main__":
     plt.show()
 
     x_test = 0*torch.ones((100,np.sum(order))).double()
-    y_test = torch.linspace(-0.1,0.1,100).unsqueeze(1).double()
+    y_test = torch.linspace(-1,1,100).unsqueeze(1).double()
 
     scores = network(x_test,y_test)
     dt = y_test[1]-y_test[0]
@@ -129,17 +140,20 @@ if __name__ == "__main__":
     X_test = torch.from_numpy(phi_val).double()
     Y_test = torch.from_numpy(yVal).double()
 
-    yhat = X_test[:,0].clone().detach()
+    yhat_init = Models.init_predict(X_test, X_test[:,0].clone().detach().unsqueeze(1), network, 2028,[-1.0,1.0])
+    yhat = yhat_init.clone()
     # yhat = torch.zeros((N-1,))
+
+    # refining the prediction
     yhat.requires_grad = True
     pred_optimizer = torch.optim.Adam([yhat], lr=0.01)
 
-    max_steps = 100
+    max_steps = 20
     #
     score_save = []
     score_save2 = np.zeros((len(yhat),max_steps))
     for step in range(max_steps):
-        score = network(X_test,yhat.unsqueeze(1))
+        score = network(X_test,yhat)
         # find the point that maximises the score
         score_save.append(score.sum().item())
         score_save2[:,step] = score.squeeze().detach()
@@ -163,7 +177,7 @@ if __name__ == "__main__":
     plt.ylabel('y')
     plt.show()
 
-    mse = torch.mean((yhat - Y_test)**2)
+    mse = torch.mean((yhat.squeeze() - Y_test)**2)
     print('Test MSE')
     print('Least squares', mse_baseline)
     print('EBM NN:', mse.item())
