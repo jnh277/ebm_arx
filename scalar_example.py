@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import torch.utils.data as data
 import Models
 import numpy as np
+import pandas as pd
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")      # use gpu if available
 
@@ -169,3 +170,9 @@ plt.plot(Y.detach())
 plt.plot(yhat.detach())
 plt.legend(['Meausrements','Predictions'])
 plt.show()
+
+
+# torch.save(network.state_dict(), 'results/scalar_example/network_'+noise_form+'.pt')
+# df = pd.DataFrame()
+# df.append(X.numpy())
+# df.append(Y.numpy())
