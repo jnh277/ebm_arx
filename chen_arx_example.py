@@ -91,9 +91,10 @@ if __name__ == "__main__":
     learning_rate = 0.001
     num_samples = 512
     num_epochs = 100
-    stds = torch.zeros((1, 2))
+    stds = torch.zeros((1, 3))
     stds[0, 0] = 0.2
     stds[0, 1] = 0.4
+    stds[0, 2] = 1.0
     noise_form = 'gaussian'
 
     torch.manual_seed(117)

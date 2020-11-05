@@ -160,4 +160,4 @@ def init_predict(xs, ys, network, num_samples,range_vals, device=torch.device("c
     yhat_init = torch.zeros(ys.shape).double()
     for i in range(ys.shape[0]):
         yhat_init[i] = y_samples[i, inds[i]]
-    return yhat_init
+    return yhat_init, y_samples, scores_samples

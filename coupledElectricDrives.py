@@ -163,7 +163,7 @@ if __name__ == "__main__":
     X_test = torch.from_numpy(phi_val).double()
     Y_test = torch.from_numpy(yVal).double()
 
-    yhat_init = Models.init_predict(X_test, X_test[:,0].clone().detach().unsqueeze(1), network, 2028,[-1.0,1.0])
+    yhat_init, _,_ = Models.init_predict(X_test, X_test[:,0].clone().detach().unsqueeze(1), network, 2028,[-1.0,1.0])
     yhat = yhat_init.clone()
     # yhat = Y_test.clone().detach().unsqueeze(1)
     # yhat = torch.zeros((N-1,))

@@ -7,20 +7,26 @@ import matplotlib.pyplot as plt
 import torch.utils.data as data
 import Models
 import numpy as np
+import scipy.stats as stats
+
+
+
+
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")      # use gpu if available
 
-N = 6000
+N = 10000
 batch_size = 64
 learning_rate = 0.001
 num_samples = 1024
-num_epochs = 100
-stds = torch.zeros((1, 2))
+num_epochs = 50
+stds = torch.zeros((1, 3))
 # worked well for bimodal
 stds[0, 0] = 0.4
 stds[0, 1] = 0.6
+stds[0, 2] = 1.0
 
-noise_form = 'bounded_gauss'            # this can also be 'gaussian', or 'bimodal'
+noise_form = 'gaussian'            # this can be 'gaussian', or 'bimodal', or 'cauchy'
 
 # simulate a really simple arx system
 a = 0.95
@@ -32,6 +38,7 @@ e = torch.zeros((N,))
 
 if noise_form == 'bimodal': # bimodal noise
     sig_m = 0.1
+    torch.manual_seed(19)  # reasonablygood 19,20
     for i in range(N-1):
         if torch.rand((1,)) > 0.5:
             e[i+1] = + 0.4 + sig_m * torch.randn((1,))
@@ -40,12 +47,15 @@ if noise_form == 'bimodal': # bimodal noise
         y[i + 1] = a * y[i] + e[i+1]
 elif noise_form == 'cauchy': # cauchy noise
     sig_m = 0.2
+    torch.manual_seed(19)  # 19 is ok
+    # worked well for bimodal
     for i in range(N-1):
         e[i+1] = sig_m*torch.from_numpy(np.random.standard_t(1, (1,)))
         y[i+1] = a*y[i]+ e[i+1]
 
 elif noise_form == 'gaussian': # gaussian
     sig_m = 0.2
+    torch.manual_seed(13)  # for reproducibility
     for i in range(N-1):
         e[i+1] = torch.from_numpy(np.random.normal(0,sig_m,(1,)))
         y[i+1] = a*y[i] + e[i+1]
@@ -56,7 +66,7 @@ elif noise_form == 'bounded_gauss':
         y[i + 1] = a * y[i] + e[i + 1]
 
 # normalise the data
-scale = 2
+scale = 2.0
 y = y/scale
 e = e/scale
 # plt.hist(y[1:]-a*y[:-1],bins=30, range=(-.5,0.5))
@@ -133,8 +143,8 @@ plt.plot(epoch_losses_train)
 plt.show()
 
 x0 = 0.0
-x_test = x0*torch.ones((100,1))
-y_test = torch.linspace(-0.5,0.5,100).unsqueeze(1)
+x_test = x0*torch.ones((500,1))
+y_test = torch.linspace(-0.5,0.5,500).unsqueeze(1)
 
 scores = network(x_test,y_test)
 dt = y_test[1]-y_test[0]
@@ -142,10 +152,30 @@ denom = scale*dt * scores.exp().sum().detach()
 # denom = 1.0
 
 # the x2 on the x axis is to undo the scaling performed that the beginning of script
-plt.hist(scale*(e+x0),bins=30, range=(-1.0,1.0), density=True)
-plt.plot(scale*y_test.detach(),scores.exp().detach()/denom,linewidth=3)
-plt.title("noise distribution")
-plt.legend(['learned distribution','true distribution'])
+# plt.hist(scale*(e+x0),bins=30, range=(-1.0,1.0), density=True)
+
+if noise_form == 'gaussian':
+    p_true = stats.norm(0, sig_m).pdf(scale * y_test.detach())
+    plt.ylim([0,2.05])
+elif noise_form == 'bimodal':
+    p_true = 0.5*stats.norm(0.4, sig_m).pdf(scale * y_test.detach())+0.5*stats.norm(-0.4, sig_m).pdf(scale * y_test.detach())
+    plt.ylim([0,2.05])
+elif noise_form == 'cauchy':
+    x_test = x0 * torch.ones((500, 1))
+    y_test = torch.linspace(-1.5, 1.5, 500).unsqueeze(1)
+    scores = network(x_test, y_test)
+    dt = y_test[1] - y_test[0]
+    denom = scale * dt * scores.exp().sum().detach()
+    p_true = stats.cauchy(0.0, sig_m).pdf(scale * y_test.detach())
+    plt.ylim([0,2.05])
+plt.plot(scale*y_test.detach(),p_true,linewidth=4)
+plt.fill_between(scale*y_test.squeeze().detach(),p_true.squeeze(),p_true.squeeze()*0,color='blue',alpha=0.3)
+plt.plot(scale*y_test.detach(),scores.exp().detach()/denom,linewidth=4,ls='--')
+plt.xlabel('$e_t$',fontsize=20)
+plt.ylabel('$p(e_t)$',fontsize=20)
+# plt.title("noise distribution")
+plt.legend(['true distribution','Learned distribution'])
+plt.xlim([-1,1])
 plt.show()
 
 
@@ -154,7 +184,7 @@ yhat = X.clone().detach()
 # yhat = torch.zeros((N-1,))
 yhat.requires_grad = True
 pred_optimizer = torch.optim.Adam([yhat], lr=0.01)
-max_steps = 1000
+max_steps = 100
 #
 for step in range(max_steps):
     score = network(X.unsqueeze(1),yhat.unsqueeze(1))
@@ -168,4 +198,14 @@ for step in range(max_steps):
 plt.plot(Y.detach())
 plt.plot(yhat.detach())
 plt.legend(['Meausrements','Predictions'])
+plt.show()
+
+yhat_init, yhat_samples, scores_samples = Models.init_predict(Y[:49].unsqueeze(1).double(), Y[:49].clone().detach().double().unsqueeze(1), network.double(), 2028, [-1.0, 1.0])
+
+plt.contour(np.arange(1,50),scale*np.linspace(-1,1,2028),scores_samples.exp().detach().numpy().T,30)
+plt.plot(scale*Y[1:50].detach(),color='red',ls='None',marker='*')
+plt.xlabel('t',fontsize=20)
+plt.ylabel('y',fontsize=20)
+plt.xlim([15,50])
+plt.legend(['measured','predicted $p(Y_t=y_t | X_t = x_t$'])
 plt.show()
