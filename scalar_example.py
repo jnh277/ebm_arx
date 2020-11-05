@@ -8,6 +8,7 @@ import torch.utils.data as data
 import Models
 import numpy as np
 import scipy.stats as stats
+import pandas as pd
 
 
 
@@ -26,7 +27,8 @@ stds[0, 0] = 0.4
 stds[0, 1] = 0.6
 stds[0, 2] = 1.0
 
-noise_form = 'gaussian'            # this can be 'gaussian', or 'bimodal', or 'cauchy'
+noise_form = 'cauchy'            # this can be 'gaussian', or 'bimodal', or 'cauchy'
+save_results = False
 
 # simulate a really simple arx system
 a = 0.95
@@ -200,12 +202,9 @@ plt.plot(yhat.detach())
 plt.legend(['Meausrements','Predictions'])
 plt.show()
 
-yhat_init, yhat_samples, scores_samples = Models.init_predict(Y[:49].unsqueeze(1).double(), Y[:49].clone().detach().double().unsqueeze(1), network.double(), 2028, [-1.0, 1.0])
 
-plt.contour(np.arange(1,50),scale*np.linspace(-1,1,2028),scores_samples.exp().detach().numpy().T,30)
-plt.plot(scale*Y[1:50].detach(),color='red',ls='None',marker='*')
-plt.xlabel('t',fontsize=20)
-plt.ylabel('y',fontsize=20)
-plt.xlim([15,50])
-plt.legend(['measured','predicted $p(Y_t=y_t | X_t = x_t$'])
-plt.show()
+if save_results:
+    torch.save(network.state_dict(), 'results/scalar_example/network_'+noise_form+'.pt')
+    df = pd.DataFrame(data=np.hstack((X.unsqueeze(1).numpy(),Y.unsqueeze(1).numpy(),
+                                      e[1:].unsqueeze(1).numpy())),columns=['X','Y','e'])
+    df.to_csv('results/scalar_example/data_'+noise_form+'.csv')

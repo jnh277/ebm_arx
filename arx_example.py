@@ -1,5 +1,4 @@
 # data generated using a second order ARX model
-
 import numpy as np
 import torch
 import torch.utils.data as data
@@ -7,6 +6,7 @@ import matplotlib.pyplot as plt
 import Models
 import scipy.linalg as linalg
 import scipy.stats as stats
+import pickle5 as pickle
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")      # use gpu if available
 
@@ -87,6 +87,8 @@ if __name__ == "__main__":
     stds[0, 1] = 0.4
     stds[0, 2] = 1.0
     noise_form = 'gaussian'
+    save_results = False
+    hidden_dim = 100
 
     dataGen = GenerateARXData(noise_form=noise_form)
     X, Y, E = dataGen(N, 1)
@@ -101,7 +103,7 @@ if __name__ == "__main__":
     train_loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 
-    network = Models.ARXnet(x_dim=4,y_dim=1,hidden_dim=100)
+    network = Models.ARXnet(x_dim=4,y_dim=1,hidden_dim=hidden_dim)
     network.double().to(device)
     optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate)
 
@@ -245,3 +247,15 @@ if __name__ == "__main__":
     plt.ylabel('$p(Y_{175}=y_{175}|X_{175}=x_{175})$',fontsize=20)
     plt.legend(['True','Estimated','measurement'])
     plt.show()
+
+    if save_results:
+        data = {"hidden_dim":hidden_dim,
+                   "scale":scale,
+                "X":X.numpy(),
+                "Y":Y.numpy(),
+                "X_test":X_test.numpy(),
+                "Y_test":Y_test.numpy()}
+        with open('results/arx_example/data.pkl',"wb") as f:
+            pickle.dump(data,f)
+
+        torch.save(network.state_dict(), 'results/arx_example/network.pt')

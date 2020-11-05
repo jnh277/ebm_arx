@@ -1,5 +1,5 @@
 # data generated using a second order ARX model
-
+import pickle5 as pickle
 import numpy as np
 import torch
 import torch.utils.data as data
@@ -87,6 +87,7 @@ class GenerateChenData(object):
 if __name__ == "__main__":
     N = 2000
     N_test = 500
+    hidden_dim = 100
     batch_size = 128
     learning_rate = 0.001
     num_samples = 512
@@ -96,6 +97,7 @@ if __name__ == "__main__":
     stds[0, 1] = 0.4
     stds[0, 2] = 1.0
     noise_form = 'gaussian'
+    save_results = True
 
     torch.manual_seed(117)
     np.random.seed(117)
@@ -114,7 +116,7 @@ if __name__ == "__main__":
     train_loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 
-    network = Models.ARXnet(x_dim=4,y_dim=1,hidden_dim=100)
+    network = Models.ARXnet(x_dim=4,y_dim=1,hidden_dim=hidden_dim)
     network.double().to(device)
     optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate)
 
@@ -236,3 +238,15 @@ if __name__ == "__main__":
     print('Test RMSE')
     print('Least squares', rmse_baseline)
     print('EBM NN:', rmse.item())
+
+    if save_results:
+        data = {"hidden_dim":hidden_dim,
+                "scale":scale,
+                "X":X.numpy(),
+                "Y":Y.numpy(),
+                "X_test":X_test.numpy(),
+                "Y_test":Y_test.numpy()}
+        with open('results/chen_model/data.pkl',"wb") as f:
+            pickle.dump(data,f)
+
+        torch.save(network.state_dict(), 'results/chen_model/network.pt')
