@@ -102,7 +102,9 @@ if __name__ == "__main__":
     torch.manual_seed(117)
     np.random.seed(117)
 
-    dataGen = GenerateChenData(noise_form=noise_form,sd_v=0.3,sd_w=0.3)
+    sd_v = 0.3
+    sd_w = 0.3
+    dataGen = GenerateChenData(noise_form=noise_form,sd_v=sd_v,sd_w=sd_w)
     X, Y, V, W = dataGen(N, 1)
 
     # Normalise the data
@@ -242,6 +244,8 @@ if __name__ == "__main__":
     if save_results:
         data = {"hidden_dim":hidden_dim,
                 "scale":scale,
+                "sd_v":sd_v,
+                "sd_w":sd_w,
                 "X":X.numpy(),
                 "Y":Y.numpy(),
                 "X_test":X_test.numpy(),

@@ -242,7 +242,7 @@ if __name__ == "__main__":
     plt.plot(xt,p_true,linewidth=3)
     plt.fill_between(xt,p_true,0*p_true,alpha=0.3)
     plt.plot(xt,scores_samples[ind].exp().detach()/denom,linewidth=3,ls='--')
-    plt.axvline(Y_test[ind],ls='--',color='k',linewidth=3)
+    plt.axvline(scale*Y_test[ind],ls='--',color='k',linewidth=3)
     plt.xlabel('$y_{175}$',fontsize=20)
     plt.ylabel('$p(Y_{175}=y_{175}|X_{175}=x_{175})$',fontsize=20)
     plt.legend(['True','Estimated','measurement'])

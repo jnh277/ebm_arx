@@ -6,11 +6,11 @@ import scipy.stats as stats
 import pickle5 as pickle
 
 
-with open('results/arx_example/data.pkl','rb') as f:
+with open('results/chen_model/data.pkl','rb') as f:
     data = pickle.load(f)
 
 network = Models.ARXnet(x_dim=4,y_dim=1,hidden_dim=data['hidden_dim'])
-network.load_state_dict(torch.load('results/arx_example/network.pt'))
+network.load_state_dict(torch.load('results/chen_model/network.pt'))
 
 scale = data['scale']
 X = torch.from_numpy(data['X'])
@@ -39,23 +39,36 @@ plt.fill_between(np.arange(len(Y_test)),u95,l95,alpha=0.1,color='b')
 plt.fill_between(np.arange(len(Y_test)),u65,l65,alpha=0.1,color='b')
 plt.xlabel('t', fontsize=20)
 plt.ylabel('y', fontsize=20)
-plt.xlim([50, 60])
-plt.legend(['measured', 'predicted $p(Y_t=y_t | X_t = x_t$'])
+plt.xlim([25, 55])
+plt.legend(['measured', 'predicted $p(Y_t=y_t | X_t = x_t$)'])
+plt.show()
+
+# ind = 50
+ind = 30
+xt = scale * np.linspace(-1, 1, 2028)
+# mu = scale * (torch.tensor([-0.7, 1.5, 0.5, 1.0]) * X_test[ind, :]).sum()
+# p_true = stats.norm(mu, 0.3).pdf(xt)
+
+dt = xt[1] - xt[0]
+denom = scores_samples[ind].exp().detach().sum() * dt
+plt.plot(xt, scores_samples[ind].exp().detach() / denom, linewidth=3)
+plt.fill_between(xt, scores_samples[ind].exp().detach() / denom, 0 * xt, alpha=0.3)
+plt.axvline(scale*Y_test[ind], ls='--', color='k', linewidth=3)
+plt.xlabel('$y_{30}$', fontsize=20)
+plt.ylabel('$p(Y_{30}=y_{30}|X_{30}=x_{30})$', fontsize=20)
+plt.legend(['True', 'Estimated', 'measurement'])
 plt.show()
 
 ind = 50
 xt = scale * np.linspace(-1, 1, 2028)
-mu = scale * (torch.tensor([-0.7, 1.5, 0.5, 1.0]) * X_test[ind, :]).sum()
-p_true = stats.norm(mu, 0.3).pdf(xt)
-
 dt = xt[1] - xt[0]
+
+
 denom = scores_samples[ind].exp().detach().sum() * dt
-plt.plot(xt, p_true, linewidth=3)
-plt.fill_between(xt, p_true, 0 * p_true, alpha=0.3)
-plt.plot(xt, scores_samples[ind].exp().detach() / denom, linewidth=3, ls='--')
+plt.plot(xt, scores_samples[ind].exp().detach() / denom, linewidth=3)
+plt.fill_between(xt, scores_samples[ind].exp().detach() / denom, 0 * xt, alpha=0.3)
 plt.axvline(scale*Y_test[ind], ls='--', color='k', linewidth=3)
 plt.xlabel('$y_{50}$', fontsize=20)
 plt.ylabel('$p(Y_{50}=y_{50}|X_{50}=x_{50})$', fontsize=20)
-plt.legend(['True', 'Estimated', 'measurement'])
+plt.legend(['Estimated', 'measurement'])
 plt.show()
-
