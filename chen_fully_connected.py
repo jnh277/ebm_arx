@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 from chen_arx_example import GenerateChenData
 import scipy.linalg as linalg
-
+import Models
 
 class FullyConnectedNet(object):
     def __init__(self, n_hidden: int = 20,  n_interm_layers: int = 1,
@@ -174,11 +174,22 @@ if __name__ == "__main__":
     net = FullyConnectedNet(n_hidden=150,n_interm_layers=4)
     net = net.fit(X, Y)
 
+    net_ebm = Models.EBM_ARX_net(use_double=False,feature_net_dim=150,predictor_net_dim=150, decay_rate=0.99, num_epochs=600)
+    net_ebm.fit(X, Y)
+
     Y_pred = net.predict(X)
     Y_pred_test = net.predict(X_test)
     pytorch_total_params = sum(p.numel() for p in net.net.parameters())
-    print('FCC trainable parameters:',pytorch_total_params)
+    print('FCC trainable parameters: ',pytorch_total_params)
     print('FCN Train rmse: ',np.sqrt(mse(Y*scale, Y_pred*scale)),'\nFCN Test rmse: ', np.sqrt(mse(Y_test*scale, Y_pred_test*scale)))
+
+    # train EBM ARX Net
+
+    yhat, prediction_scores = net_ebm.predict(X)
+    yhat_test, prediction_scores = net_ebm.predict(X_test)
+    pytorch_total_params = sum(p.numel() for p in net_ebm.net.parameters())
+    print('EBM net trainable parameters: ',pytorch_total_params)
+    print('EBM Train rmse: ',np.sqrt(mse(Y*scale, yhat.squeeze().numpy()*scale)),'\nEBM Test rmse: ', np.sqrt(mse(Y_test*scale, yhat_test.squeeze().numpy()*scale)))
 
 
     # compute linear baseline
@@ -191,7 +202,8 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     k = range(len(Y_test))
     ax.plot(k, Y_test, color='green', label='observed')
-    ax.plot(k, Y_pred_test, color='blue', label='predicted')
+    ax.plot(k, Y_pred_test, color='blue',ls='--', label='fcn')
+    ax.plot(k, yhat_test, ls='-.', label='ebm')
     ax.set_xlabel('k')
     ax.set_ylabel('y')
     ax.legend()

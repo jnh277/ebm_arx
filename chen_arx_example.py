@@ -87,7 +87,7 @@ class GenerateChenData(object):
 if __name__ == "__main__":
     N = 1000
     N_test = 500
-    hidden_dim = 400
+    hidden_dim = 100
     batch_size = 128
     learning_rate = 0.001
     num_samples = 512
@@ -109,8 +109,8 @@ if __name__ == "__main__":
 
     # Normalise the data
     scale = Y.max(0)
-    X = torch.from_numpy(X / scale).double()
-    Y = torch.from_numpy(Y / scale).double()
+    X = X / scale
+    Y = Y / scale
     V = V / scale
     W = W / scale
 
@@ -120,108 +120,29 @@ if __name__ == "__main__":
     X_test = X_test/scale
     Y_test = Y_test/scale
 
-    dataset = data.TensorDataset(X, Y)
-    train_loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
+    net = Models.EBM_ARX_net(use_double=False,feature_net_dim=hidden_dim,predictor_net_dim=hidden_dim, decay_rate=0.99, num_epochs=600)
+    net.fit(X, Y)
+    training_losses = net.training_losses
 
-
-    network = Models.ARXnet(x_dim=4,y_dim=1,feature_net_dim=hidden_dim,predictor_net_dim=hidden_dim)
-    network.double().to(device)
-    optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate)
-
-    epoch_losses_train = []
-
-    for epoch in range(num_epochs):
-        network.train()  # (set in training mode, this affects BatchNorm and dropout)
-        batch_losses = []
-        for step, (xs, ys) in enumerate(train_loader):
-            xs = xs.to(device) # (shape: (batch_size, 1))
-            ys = ys.unsqueeze(1).to(device)  # (shape: (batch_size, 1))
-
-            loss = Models.NCE_loss(xs, ys, network, stds, num_samples, device)
-
-            loss_value = loss.data.cpu().numpy()
-            batch_losses.append(loss_value)
-
-            ########################################################################
-            # optimization step:
-            ########################################################################
-            optimizer.zero_grad()  # (reset gradients)
-            loss.backward()  # (compute gradients)
-            optimizer.step()  # (perform optimization step)
-
-            # print("max_score_samp = {} ,  max_score = {}".format(scores_samples.max().item(), scores_gt.max().item()))
-
-        epoch_loss = np.mean(batch_losses)
-        epoch_losses_train.append(epoch_loss)
-        print('Epoch: {0} train loss: {1}'.format(epoch,epoch_loss))
-
-    network.cpu()
-
-    plt.plot(epoch_losses_train)
+    plt.plot(training_losses)
     plt.title('Training loss')
     plt.xlabel('epoch')
     plt.show()
 
-    x_test = 0*torch.ones((100,4)).double()
-    y_test = torch.linspace(-2/scale,2/scale,100).unsqueeze(1).double()
-
-    scores = network(x_test,y_test)
-    dt = y_test[1]-y_test[0]
-    denom = scale*dt * scores.exp().sum().detach()
-
-    plt.hist(scale*(W+V),bins=30,density=True)
-    plt.plot(scale*y_test.detach(),scores.exp().detach()/denom)
-    plt.title("learned Gaussian distribution")
-    plt.legend(['true','learned'])
-    plt.xlabel('e')
-    plt.ylabel('p(e)')
-    plt.show()
-
-
-
-
     # make baseline predictions of test data set using least squares
-    estim_param, _resid, _rank, _s = linalg.lstsq(X.numpy(), Y.numpy())
+    estim_param, _resid, _rank, _s = linalg.lstsq(X, Y)
     rmse_baseline = np.sqrt(np.mean((X_test @ estim_param*scale - Y_test*scale) ** 2))
 
-    # make predictions of test data set using trained EBM NN
-    X_test = torch.from_numpy(X_test).double()
-    Y_test = torch.from_numpy(Y_test).double()
+    # # make predictions of test data set using trained EBM NN
+    yhat, prediction_scores = net.predict(X_test)
 
-    yhat = X_test[:,0].clone().detach()
-    # yhat = Y_test.clone().detach()
-    # yhat = torch.zeros((N-1,))
-    yhat.requires_grad = True
-    pred_optimizer = torch.optim.Adam([yhat], lr=0.01)
-    # pred_optimizer = torch.optim.SGD([yhat],lr=0.01)
-    max_steps = 100
-    #
-    score_save = []
-    score_save2 = np.zeros((len(yhat),max_steps))
-    for step in range(max_steps):
-        score = network(X_test,yhat.unsqueeze(1))
-        # find the point that maximises the score
-        score_save.append(score.sum().item())
-        score_save2[:,step] = score.squeeze().detach()
-        neg_score = (-1*score).sum()
-        pred_optimizer.zero_grad()
-        neg_score.backward()
-        pred_optimizer.step()
-
-    diff = (yhat - X_test[:,0]).detach().numpy()
-    if any(abs(diff)<1e-10):
-        print('not all predictions converged')
-    ind = np.where(abs(diff) == min(abs(diff)))
-
-    plt.plot(score_save[:100])
+    plt.plot(prediction_scores[:100])
     plt.title('score during prediction stage')
     plt.show()
-
-    plt.plot(score_save2.T)
-    plt.show()
-
-    plt.plot(scale*Y_test[:].detach())
-    plt.plot(scale*yhat[:].detach())
+    #
+    #
+    plt.plot(Y_test)
+    plt.plot(yhat.detach())
     plt.legend(['Meausrements','Predictions'])
     plt.title('Test set predictions')
     plt.xlabel('t')
@@ -229,14 +150,14 @@ if __name__ == "__main__":
     plt.show()
 
 
-    e = yhat*scale - Y_test*scale
+    e = yhat.squeeze()*scale - Y_test*scale
     #
     plt.plot(abs(e.detach()))
     plt.ylabel('error magnitudes')
     plt.show()
 
     ind = abs(e) < 4*e.std()
-    pytorch_total_params = sum(p.numel() for p in network.parameters())
+    pytorch_total_params = sum(p.numel() for p in net.net.parameters())
     print('Total trainable parameters:',pytorch_total_params)
     print('num outliers:',(len(e)-sum(ind)).item())
     rmse = torch.mean((e[ind])**2).sqrt()
@@ -256,4 +177,5 @@ if __name__ == "__main__":
         with open('results/chen_model/data.pkl',"wb") as f:
             pickle.dump(data,f)
 
-        torch.save(network.state_dict(), 'results/chen_model/network.pt')
+        with open('results/chen_model/network.pkl',"wb") as f:
+            pickle.dump(net, f)
