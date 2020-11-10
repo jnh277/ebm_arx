@@ -172,6 +172,8 @@ class EBM_ARX_net(object):
         self.net = None
         self.training_losses = None
         self.scaling = None
+        self.x_dim = None
+        self.y_dim = None
         use_cuda = torch.cuda.is_available() and not cpu_only
         self.device = torch.device('cuda:0' if use_cuda else 'cpu')
         self.random_state = random_state
@@ -236,16 +238,14 @@ class EBM_ARX_net(object):
     def _gridpredict(xs, network, num_samples, dtype, range_vals=(-1.2, 1.2)):
         x_features = network.feature_net(xs)  # (shape: (batch_size, hidden_dim))
         y_shape = (xs.shape[0], 1)
-        y_samples = torch.zeros(y_shape, dtype=dtype)+torch.linspace(range_vals[0], range_vals[1], num_samples, dtype=dtype).unsqueeze(0)
-        # y_samples = y_samples.to(device)
-
-
+        xt = torch.linspace(range_vals[0], range_vals[1], num_samples, dtype=dtype)
+        y_samples = torch.zeros(y_shape, dtype=dtype) + xt.unsqueeze(0)
         scores_samples = network.predictor_net(x_features, y_samples)  # (shape: (batch_size, num_samples))
         inds = scores_samples.argmax(1)
         yhat = torch.zeros(y_shape, dtype=dtype)
-        for i in range(y_shape):
+        for i in range(y_shape[0]):
             yhat[i] = y_samples[i, inds[i]]
-        return yhat, y_samples, scores_samples
+        return yhat, y_samples, scores_samples, xt
 
     def fit(self, X, y):
         X = np.atleast_2d(X)
@@ -255,7 +255,7 @@ class EBM_ARX_net(object):
         # X = X/scaling
         # Y = Y/scaling
         torch.manual_seed(self.random_state)
-        net = self.get_nn(x_dim, y_dim, self.feature_net_dim, self.predictor_net_dim)
+        net = self._get_nn(x_dim, y_dim, self.feature_net_dim, self.predictor_net_dim)
         net = net.to(dtype=self.dtype,device=self.device)
         optimizer = torch.optim.Adam(net.parameters(), lr=self.lr)
         if self.decay_rate < 1.0:
@@ -266,12 +266,14 @@ class EBM_ARX_net(object):
         loader = torch.utils.data.DataLoader(dset, batch_size=self.batch_size, shuffle=True)
         training_losses = []
         for ep in tqdm(range(self.num_epochs), desc='Training EBM net: '):
-            _loss = self._train(net, loader, self.device, self.stds, self.num_samples, self.dtype)
+            _loss = self._train(net, optimizer, loader, self.device, self.stds, self.num_samples, self.dtype)
             training_losses.append(_loss)
             if self.decay_rate < 1.0:
                 scheduler.step()
-        self.net = net
+        self.net = net.cpu()
         self.training_losses = training_losses
+        self.x_dim = x_dim
+        self.y_dim = y_dim
         # self.scaling = scaling
         return self
 
@@ -280,7 +282,7 @@ class EBM_ARX_net(object):
         X = np.atleast_2d(X)
         X = torch.from_numpy(X).to(dtype=self.dtype)
         # initially predicting over a grid
-        yhat_init, _, _ = self._gridpredict(X, self.net, 2028, self.dtype)
+        yhat_init, _, _, _ = self._gridpredict(X, self.net, 2028, self.dtype)
         yhat = yhat_init.clone()
 
         # refining the prediction
@@ -299,3 +301,19 @@ class EBM_ARX_net(object):
             pred_optimizer.step()
 
         return yhat.detach(), prediction_score
+
+    def pdf_predict(self, X):
+        X = torch.from_numpy(X).type(self.dtype)
+        _, y_grid, scores_grid, xt = self._gridpredict(X, self.net, 2028, self.dtype)
+        dt = xt[1] - xt[0]
+        denom = scores_grid.exp().detach().sum(1) * dt
+        pdf = scores_grid.exp().detach() / np.reshape(denom,(-1,1))
+        cdf = np.cumsum(pdf*dt, axis=1)
+        u95 = xt[np.argmin(abs(cdf - 0.975), 1)]
+        l95 = xt[np.argmin(abs(cdf - 0.025), 1)]
+        u99 = xt[np.argmin(abs(cdf - 0.995), 1)]
+        l99 = xt[np.argmin(abs(cdf - 0.005), 1)]
+        u65 = xt[np.argmin(abs(cdf - 0.825), 1)]
+        l65 = xt[np.argmin(abs(cdf - 0.175), 1)]
+
+        return pdf, cdf, u95, l95, u99, l99, u65, l65
