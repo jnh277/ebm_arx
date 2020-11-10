@@ -103,7 +103,7 @@ if __name__ == "__main__":
     train_loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 
-    network = Models.ARXnet(x_dim=4,y_dim=1,hidden_dim=hidden_dim)
+    network = Models.ARXnet(x_dim=4,y_dim=1,feature_net_dim=hidden_dim,predictor_net_dim=hidden_dim)
     network.double().to(device)
     optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate)
 

@@ -28,3 +28,6 @@ torch==1.6.0
 virtualenv==16.7.7
 virtualenv-clone==0.5.3
 xfab==0.0.4
+
+tqdm~=4.51.0
+pickle5~=0.0.11

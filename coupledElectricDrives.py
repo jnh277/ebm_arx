@@ -100,7 +100,7 @@ if __name__ == "__main__":
     train_loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 
-    network = Models.ARXnet(x_dim=np.sum(order),y_dim=1,hidden_dim=75)
+    network = Models.ARXnet(x_dim=np.sum(order),y_dim=1,feature_net_dim=75,predictor_net_dim=75)
     network.double().to(device)
     optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate,weight_decay=0.01)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.1)

@@ -85,9 +85,9 @@ class GenerateChenData(object):
 
 # ---- Main script ----
 if __name__ == "__main__":
-    N = 2000
+    N = 1000
     N_test = 500
-    hidden_dim = 100
+    hidden_dim = 400
     batch_size = 128
     learning_rate = 0.001
     num_samples = 512
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     stds[0, 1] = 0.4
     stds[0, 2] = 1.0
     noise_form = 'gaussian'
-    save_results = True
+    save_results = False
 
     torch.manual_seed(117)
     np.random.seed(117)
@@ -114,11 +114,17 @@ if __name__ == "__main__":
     V = V / scale
     W = W / scale
 
+
+    # simulate test data set
+    X_test, Y_test, _, _ = dataGen(N_test, 1)
+    X_test = X_test/scale
+    Y_test = Y_test/scale
+
     dataset = data.TensorDataset(X, Y)
     train_loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 
-    network = Models.ARXnet(x_dim=4,y_dim=1,hidden_dim=hidden_dim)
+    network = Models.ARXnet(x_dim=4,y_dim=1,feature_net_dim=hidden_dim,predictor_net_dim=hidden_dim)
     network.double().to(device)
     optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate)
 
@@ -171,10 +177,7 @@ if __name__ == "__main__":
     plt.ylabel('p(e)')
     plt.show()
 
-    # simulate test data set
-    X_test, Y_test, _, _ = dataGen(N_test, 1)
-    X_test = X_test/scale
-    Y_test = Y_test/scale
+
 
 
     # make baseline predictions of test data set using least squares
