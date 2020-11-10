@@ -174,7 +174,7 @@ if __name__ == "__main__":
     net = FullyConnectedNet(n_hidden=150,n_interm_layers=4)
     net = net.fit(X, Y)
 
-    net_ebm = Models.EBM_ARX_net(use_double=False,feature_net_dim=150,predictor_net_dim=150, decay_rate=0.99, num_epochs=600)
+    net_ebm = Models.EBM_ARX_net(use_double=False,feature_net_dim=100,predictor_net_dim=100, decay_rate=0.99, num_epochs=600)
     net_ebm.fit(X, Y)
 
     Y_pred = net.predict(X)

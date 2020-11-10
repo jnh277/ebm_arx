@@ -123,7 +123,7 @@ if __name__ == "__main__":
     plt.ylabel('y')
     plt.show()
 
-    pdf, cdf, u95, l95, u99, l99, u65, l65 = net.pdf_predict(X_test)
+    pdf, cdf, u95, l95, u99, l99, u65, l65, xt = net.pdf_predict(X_test)
 
     plt.plot(scale * Y_test, color='red', ls='None', marker='*')
     plt.fill_between(np.arange(len(Y_test)), scale*u99, scale*l99, alpha=0.1, color='b')

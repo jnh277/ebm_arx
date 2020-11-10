@@ -19,8 +19,8 @@ X_test = data['X_test']
 Y_test = data['Y_test']
 
 
-pdf, cdf, u95, l95, u99, l99, u65, l65 = net.pdf_predict(X_test)
-
+pdf, cdf, u95, l95, u99, l99, u65, l65, xt = net.pdf_predict(X_test)
+xt = xt*scale
 yhat, _ = net.predict(X_test)
 
 
@@ -37,7 +37,6 @@ plt.show()
 
 
 ind = 53
-xt = scale * np.linspace(-1, 1, 2028)
 
 plt.plot(xt, pdf[ind]/scale, linewidth=3)
 plt.fill_between(xt, pdf[ind]/scale, 0 * pdf[ind]/scale, alpha=0.3)

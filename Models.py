@@ -168,7 +168,7 @@ class EBM_ARX_net(object):
     def __init__(self,feature_net_dim: int = 100, predictor_net_dim: int = 100, cpu_only: bool = False,
                  random_state: int = 0, lr: float = 0.001, decay_rate: float = 1.0, use_double: bool = True,
                  stds=torch.tensor([0.1, 0.2, 0.8]), num_samples: int = 512, num_epochs: int = 300,
-                 batch_size: int = 128):
+                 batch_size: int = 128, weight_decay: float = 0.0):
         self.net = None
         self.training_losses = None
         self.scaling = None
@@ -187,6 +187,7 @@ class EBM_ARX_net(object):
         self.predictor_net_dim = predictor_net_dim
         self.num_samples = num_samples
         self.batch_size = batch_size
+        self.weight_decay = weight_decay
 
     @staticmethod
     def _get_nn(x_dim, y_dim, feature_net_dim, predictor_net_dim):
@@ -257,7 +258,7 @@ class EBM_ARX_net(object):
         torch.manual_seed(self.random_state)
         net = self._get_nn(x_dim, y_dim, self.feature_net_dim, self.predictor_net_dim)
         net = net.to(dtype=self.dtype,device=self.device)
-        optimizer = torch.optim.Adam(net.parameters(), lr=self.lr)
+        optimizer = torch.optim.Adam(net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         if self.decay_rate < 1.0:
             scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, self.decay_rate)
         X = torch.from_numpy(X).to(dtype=self.dtype)
@@ -316,4 +317,4 @@ class EBM_ARX_net(object):
         u65 = xt[np.argmin(abs(cdf - 0.825), 1)]
         l65 = xt[np.argmin(abs(cdf - 0.175), 1)]
 
-        return pdf, cdf, u95, l95, u99, l99, u65, l65
+        return pdf, cdf, u95, l95, u99, l99, u65, l65, xt
