@@ -74,19 +74,11 @@ class GenerateARXData(object):
 if __name__ == "__main__":
     N = 1000
     N_test = 200
-    batch_size = 128
-    learning_rate = 0.001
-    num_samples = 512
-    num_epochs = 100
-    stds = torch.zeros((1, 3))
-    stds[0, 0] = 0.2
-    stds[0, 1] = 0.4
-    stds[0, 2] = 1.0
     noise_form = 'gaussian'
     save_results = False
     hidden_dim = 100
 
-    np.random.seed(13)      # set numpy seed to get consistent data
+    np.random.seed(117)      # set numpy seed to get consistent data
     dataGen = GenerateARXData(noise_form=noise_form)
     X, Y, E = dataGen(N, 1)
 
@@ -146,10 +138,10 @@ if __name__ == "__main__":
     if save_results:
         data = {"hidden_dim":hidden_dim,
                 "scale":scale,
-                "X":X.numpy(),
-                "Y":Y.numpy(),
-                "X_test":X_test.numpy(),
-                "Y_test":Y_test.numpy()}
+                "X":X,
+                "Y":Y,
+                "X_test":X_test,
+                "Y_test":Y_test}
         with open('results/arx_example/data.pkl',"wb") as f:
             pickle.dump(data,f)
 

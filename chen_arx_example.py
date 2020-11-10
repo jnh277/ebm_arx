@@ -88,16 +88,9 @@ if __name__ == "__main__":
     N = 1000
     N_test = 500
     hidden_dim = 100
-    batch_size = 128
-    learning_rate = 0.001
-    num_samples = 512
-    num_epochs = 100
-    stds = torch.zeros((1, 3))
-    stds[0, 0] = 0.2
-    stds[0, 1] = 0.4
-    stds[0, 2] = 1.0
+
     noise_form = 'gaussian'
-    save_results = True
+    save_results = False
 
     torch.manual_seed(117)
     np.random.seed(117)
