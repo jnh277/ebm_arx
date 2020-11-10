@@ -28,7 +28,7 @@ plt.fill_between(np.arange(len(Y_test)),scale*u65,scale*l65,alpha=0.1,color='b')
 plt.xlabel('t', fontsize=20)
 plt.ylabel('y', fontsize=20)
 plt.xlim([50, 60])
-plt.legend(['measured', 'predicted $p(Y_t=y_t | X_t = x_t$'])
+plt.legend(['measured', 'predicted $p(Y_t=y_t | X_t = x_t)$'])
 plt.show()
 
 ind = 120

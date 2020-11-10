@@ -97,7 +97,7 @@ if __name__ == "__main__":
     stds[0, 1] = 0.4
     stds[0, 2] = 1.0
     noise_form = 'gaussian'
-    save_results = False
+    save_results = True
 
     torch.manual_seed(117)
     np.random.seed(117)
@@ -170,10 +170,10 @@ if __name__ == "__main__":
                 "scale":scale,
                 "sd_v":sd_v,
                 "sd_w":sd_w,
-                "X":X.numpy(),
-                "Y":Y.numpy(),
-                "X_test":X_test.numpy(),
-                "Y_test":Y_test.numpy()}
+                "X":X,
+                "Y":Y,
+                "X_test":X_test,
+                "Y_test":Y_test}
         with open('results/chen_model/data.pkl',"wb") as f:
             pickle.dump(data,f)
 
