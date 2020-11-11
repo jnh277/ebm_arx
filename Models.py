@@ -37,12 +37,14 @@ def sample_gmm_centered(std, num_samples=1):
     return x_centered, prob_dens, prob_dens_zero
 
 class PredictorNet(nn.Module):
-    def __init__(self, y_dim, hidden_dim=10):
+    def __init__(self, y_dim, hidden_dim=10, feature_net_dim=None):
         super().__init__()
 
+        if feature_net_dim is None:
+            feature_net_dim = hidden_dim
         self.fc1_y = nn.Linear(y_dim, hidden_dim)
 
-        self.fc1_xy = nn.Linear(2*hidden_dim, hidden_dim)
+        self.fc1_xy = nn.Linear(hidden_dim + feature_net_dim, hidden_dim)
         self.fc2_xy = nn.Linear(hidden_dim, hidden_dim)
         self.fc3_xy = nn.Linear(hidden_dim, hidden_dim)
         self.fc4_xy = nn.Linear(hidden_dim, 1)
@@ -111,7 +113,7 @@ class ARXnet(nn.Module):
         super(ARXnet, self).__init__()
 
         self.feature_net = FeatureNet(x_dim, feature_net_dim)
-        self.predictor_net = PredictorNet(y_dim, predictor_net_dim)
+        self.predictor_net = PredictorNet(y_dim, predictor_net_dim, feature_net_dim)
 
     def forward(self, x, y):
         # (x has shape (batch_size, input_dim))
@@ -318,3 +320,123 @@ class EBM_ARX_net(object):
         l65 = xt[np.argmin(abs(cdf - 0.175), 1)]
 
         return pdf, cdf, u95, l95, u99, l99, u65, l65, xt
+
+class FullyConnectedNet(object):
+    def __init__(self, n_hidden: int = 20,  n_interm_layers: int = 1,
+                 nonlinearity: str = 'tanh', lr: float = 0.001, momentum: float = 0.95,
+                 nesterov: bool = False,
+                 epochs: int = 300, batch_size: int = 32, decay_rate: float = 1.0,
+                 random_state: int = 0, cpu_only: bool = False):
+        self.n_hidden = n_hidden
+        self.n_interm_layers = n_interm_layers
+        use_cuda = torch.cuda.is_available() and not cpu_only
+        self.device = torch.device('cuda:0' if use_cuda else 'cpu')
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.random_state = random_state
+        self.nonlinearity = nonlinearity
+        self.lr = lr
+        self.momentum = momentum
+        self.nesterov = nesterov
+        self.decay_rate = decay_rate
+        self.net = None
+
+    @staticmethod
+    def get_nn(n_inputs, n_hidden, n_iterm_layers, nonlinearity):
+        layers = []
+        # Get nonlinerity
+        if nonlinearity.lower() == 'relu':
+            nl = nn.ReLU(True)
+        elif nonlinearity.lower() == 'tanh':
+            nl = nn.Tanh()
+        else:
+            raise ValueError('invalid nonlinearity {}'.format(nonlinearity))
+        layers += [nn.Linear(n_inputs, n_hidden), nl]
+        for i in range(n_iterm_layers-1):
+            layers += [nn.Linear(n_hidden, n_hidden), nl]
+        layers += [nn.Linear(n_hidden, 1)]
+        net = nn.Sequential(*layers)
+        # Initialize modules
+        for m in net.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity=nonlinearity.lower())
+                nn.init.zeros_(m.bias)
+        return net
+
+    @staticmethod
+    def _train(net, optimizer, loader, device):
+        net = net.train()
+        total_loss = 0
+        n_entries = 0
+        for i, data in enumerate(loader):
+            # get the inputs; data is a list of [inputs, labels]
+            inputs, outputs = data
+            inputs = inputs.to(device)
+            outputs = outputs.to(device)
+            # zero the parameter gradients
+            optimizer.zero_grad()
+            # forward + backward + optimize
+            predictions = net(inputs)
+            loss = nn.functional.mse_loss(predictions.flatten(), outputs.flatten())
+            loss.backward()
+            optimizer.step()
+            # Update
+            bs = len(outputs)
+            total_loss += loss.detach().cpu().numpy() * bs
+            n_entries += bs
+        return total_loss / n_entries
+
+    @staticmethod
+    def _eval(net, loader, device):
+        net.eval()
+        n_entries = 0
+        predictions_list = []
+        for i, data in enumerate(loader):
+            # get the inputs; data is a list of [inputs, labels]
+            inputs, = data
+            inputs = inputs.to(device)
+            with torch.no_grad():
+                predictions = net(inputs)
+            # Update
+            predictions_list.append(predictions)
+            bs = len(predictions)
+            n_entries += bs
+        return torch.cat(predictions_list).detach().cpu().flatten().numpy()
+
+    def fit(self, X, y):
+        X = np.atleast_2d(X)
+        n_total, n_in = X.shape
+        torch.manual_seed(self.random_state)
+        net = self.get_nn(n_in, self.n_hidden, self.n_interm_layers, self.nonlinearity)
+        net.to(self.device)
+        optimizer = torch.optim.SGD(net.parameters(), lr=self.lr, momentum=self.momentum, nesterov=self.nesterov)
+        if self.decay_rate < 1.0:
+            scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, self.decay_rate)
+        X = torch.from_numpy(X).to(dtype=torch.float32)
+        y = torch.from_numpy(y).to(dtype=torch.float32)
+        dset = torch.utils.data.TensorDataset(X, y)
+        loader = torch.utils.data.DataLoader(dset, batch_size=32, shuffle=True)
+        for ep in tqdm(range(self.epochs),desc='Training FCN: '):
+            _loss = self._train(net, optimizer, loader, self.device)
+            if self.decay_rate < 1.0:
+                scheduler.step()
+        self.net = net
+        return self
+
+    def predict(self, X):
+        X = np.atleast_2d(X)
+        n_total, n_features = X.shape
+        X = torch.from_numpy(X).to(dtype=torch.float32)
+        if n_total < self.batch_size:
+            y = self.net(X).detach().cpu().flatten().numpy()
+        else:
+            dset = torch.utils.data.TensorDataset(X)
+            loader = torch.utils.data.DataLoader(dset, batch_size=self.batch_size, shuffle=False)
+            y = self._eval(self.net, loader, self.device)
+        return y
+
+    def __repr__(self):
+        return '{}({},{},{},{},{},{},{},{},{},{})'.format(
+            type(self).__name__, self.n_features, self.n_interm_layers,
+            self.nonlinearity, self.lr, self.momentum, self.nesterov, self.epochs, self.batch_size,
+            self.decay_rate, self.random_state)

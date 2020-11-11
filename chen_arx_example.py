@@ -113,7 +113,7 @@ if __name__ == "__main__":
     X_test = X_test/scale
     Y_test = Y_test/scale
 
-    net = Models.EBM_ARX_net(use_double=False,feature_net_dim=hidden_dim,predictor_net_dim=hidden_dim, decay_rate=0.99, num_epochs=600)
+    net = Models.EBM_ARX_net(use_double=False,feature_net_dim=100,predictor_net_dim=50, decay_rate=0.99, num_epochs=600)
     net.fit(X, Y)
     training_losses = net.training_losses
 

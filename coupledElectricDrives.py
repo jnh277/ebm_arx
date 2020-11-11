@@ -21,6 +21,26 @@ def build_phi_matrix(obs,order,inputs):
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")      # use gpu if available
 
+class DataScaler(object):
+    def __init__(self, data, upper: float = 1.0, lower: float = -1.0):
+        self.upper = upper
+        self.lower = lower
+        self.data_max = data.max()
+        self.data_min = data.min()
+        self.data = data
+        self.scaled_data = (data - self.data_min) / (self.data_max - self.data_min) * 2 - 1.0
+
+    def scale_data(self,data):
+        # data_scaled = ()
+        # for d in data:
+        data_scaled = (data - self.data_min) / (self.data_max - self.data_min) * 2 - 1.0
+        return data_scaled
+
+    def unscale_data(self,scaled_data):
+        # data = ()
+        # for sd in scaled_data:
+        data =  (scaled_data + 1.0) / 2 * (self.data_max - self.data_min) + self.data_min
+        return data
 
 
 # ---- Main script ----
@@ -38,12 +58,10 @@ if __name__ == "__main__":
     # u = np.reshape(CEDdata[['u11','u12']].to_numpy().T,(-1,))
     # y = np.reshape(CEDdata[['z11', 'z12']].to_numpy().T, (-1,))
 
-    u_max = u.max()
-    u_min = u.min()
-    y_max = y.max()
-    y_min = y.min()
-    y = (y - y_min) / (y_max - y_min)*2-1
-    u = (u - u_min) / (u_max - u_min) * 2 - 1
+    yDS = DataScaler(y)
+    uDS = DataScaler(u)
+    y = yDS.scaled_data
+    u = uDS.scaled_data
 
     order = [3, 3]
     max_delay = np.max((order[0],order[1]-1))
@@ -56,7 +74,7 @@ if __name__ == "__main__":
     N = len(yEst)
     N_test = len(yVal)
 
-    net = Models.EBM_ARX_net(use_double=False,weight_decay=0.01,feature_net_dim=75,predictor_net_dim=75, decay_rate=0.99, num_epochs=600)
+    net = Models.EBM_ARX_net(use_double=False,weight_decay=0.00,feature_net_dim=75,predictor_net_dim=75, decay_rate=0.99, num_epochs=600)
     net.fit(phi_est, yEst)
     training_losses = net.training_losses
 
@@ -69,25 +87,39 @@ if __name__ == "__main__":
 
     # make baseline predictions of test data set using least squares
     estim_param, _resid, _rank, _s = linalg.lstsq(phi_est, yEst)
-    rmse_baseline = np.sqrt(np.mean((phi_val @ estim_param - yVal) ** 2))
+    yhat_lsq= phi_val @ estim_param
+
 
     # # make predictions of test data set using trained EBM NN
     yhat, prediction_scores = net.predict(phi_val)
+    pdfData = net.pdf_predict(phi_val)
+
+    # unscale outputs
+    yhat = yDS.unscale_data(yhat)
+    yVal = yDS.unscale_data(yVal)
+    yhat_lsq = yDS.unscale_data(yhat_lsq)
+
+    res = ()
+    for r in pdfData:
+        res = res + (yDS.unscale_data(r),)
+    pdf, cdf, u95, l95, u99, l99, u65, l65, xt = res
 
     plt.plot(prediction_scores[:100])
     plt.title('score during prediction stage')
     plt.show()
     #
     #
-    plt.plot(yVal)
-    plt.plot(yhat.detach())
+    plt.plot(yDS.unscale_data(yVal))
+    plt.plot(yDS.unscale_data(yhat.detach().numpy()))
     plt.legend(['Meausrements','Predictions'])
     plt.title('Test set predictions')
     plt.xlabel('t')
     plt.ylabel('y')
     plt.show()
 
-    pdf, cdf, u95, l95, u99, l99, u65, l65, xt = net.pdf_predict(phi_val)
+    # pdf, cdf, u95, l95, u99, l99, u65, l65, xt = net.pdf_predict(phi_val)
+
+
 
     plt.plot(yVal, color='red', ls='None', marker='*')
     plt.plot(yhat, color='blue')
@@ -97,28 +129,45 @@ if __name__ == "__main__":
     plt.xlabel('t', fontsize=20)
     plt.ylabel('y', fontsize=20)
     plt.xlim([50, 60])
-    plt.legend(['measured','mean pred', 'predicted $p(Y_t=y_t | X_t = x_t$'])
+    plt.legend(['measured','mean pred', 'predicted $p(Y_t=y_t | X_t = x_t)$'])
     plt.show()
 
-    plt.plot(xt,pdf[54])
-    plt.axvline(yVal[54],ls='--',color='k')
+    plt.plot(xt,pdf[57])
+    plt.axvline(yVal[57],ls='--',color='k')
+    plt.xlabel('$y_{57}$',fontsize=20)
+    plt.ylabel('$p(y_{57}|X_{57}$)',fontsize=20)
+    plt.legend(['Predicted distribution','Measurement'],fontsize=14)
     plt.show()
 
+    rmse_baseline = np.sqrt(np.mean((yhat_lsq - yVal) ** 2))
     e = yhat.squeeze() - yVal
+    e_lsq = yhat_lsq - yVal
     #
     plt.plot(abs(e.detach()))
+    plt.plot(abs(e_lsq))
     plt.ylabel('error magnitudes')
+    plt.legend(['EBM','LSQ'])
     plt.show()
 
-    ind = abs(e) < 4*e.std()
+    # ind = abs(e) < 4*e.std()
     pytorch_total_params = sum(p.numel() for p in net.net.parameters())
     print('Total trainable parameters:',pytorch_total_params)
-    print('num outliers:',(len(e)-sum(ind)).item())
-    rmse = torch.mean((e[ind])**2).sqrt()
+    rmse = torch.mean((e)**2).sqrt()
     print('Test RMSE')
     print('Least squares', rmse_baseline)
     print('EBM NN:', rmse.item())
 
     if save_results:
+        data = {'phi_est':phi_est,
+                'yEst':yEst,
+                'phi_val':phi_val,
+                'yVal':yVal,
+                'order':order}
+        with open('results/coupled_electric_drives/data.pkl',"wb") as f:
+            pickle.dump(data, f)
         with open('results/coupled_electric_drives/network.pkl',"wb") as f:
             pickle.dump(net, f)
+        with open('results/coupled_electric_drives/yDS.pkl', "wb") as f:
+            pickle.dump(yDS, f)
+        with open('results/coupled_electric_drives/uDS.pkl', "wb") as f:
+            pickle.dump(uDS, f)

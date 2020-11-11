@@ -5,7 +5,6 @@ import Models
 import scipy.stats as stats
 import pickle5 as pickle
 
-
 with open('results/chen_model/data.pkl','rb') as f:
     data = pickle.load(f)
 
