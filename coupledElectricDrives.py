@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import Models
 import scipy.linalg as linalg
 from sklearn.model_selection import train_test_split
+from Models import FullyConnectedNet
 
 def build_phi_matrix(obs,order,inputs):
     "Builds the regressor matrix"
@@ -77,6 +78,10 @@ if __name__ == "__main__":
     net = Models.EBM_ARX_net(use_double=False,weight_decay=0.00,feature_net_dim=75,predictor_net_dim=75, decay_rate=0.99, num_epochs=600)
     net.fit(phi_est, yEst)
     training_losses = net.training_losses
+
+    net_fcn = FullyConnectedNet(n_hidden=150, n_interm_layers=4)
+    net_fcn.fit(phi_est, yEst)
+    yhat_fcn = net_fcn.predict(phi_val)
 
 
     plt.plot(training_losses)
@@ -171,3 +176,5 @@ if __name__ == "__main__":
             pickle.dump(yDS, f)
         with open('results/coupled_electric_drives/uDS.pkl', "wb") as f:
             pickle.dump(uDS, f)
+        with open('results/coupled_electric_drives/fcn.pkl',"wb") as f:
+            pickle.dump(net_fcn, f)

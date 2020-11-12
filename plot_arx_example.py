@@ -30,7 +30,7 @@ plt.fill_between(np.arange(len(Y_test)),scale*u65,scale*l65, alpha=0.1, color='b
 plt.xlabel('t', fontsize=20)
 plt.ylabel('y', fontsize=20)
 plt.xlim([50, 60])
-plt.legend(['measured', 'mean pred','predicted $p(Y_t=y_t | X_t = x_t)$'])
+plt.legend(['Measured', 'MAP','Predicted $p(Y_t=y_t | X_t = x_t)$'])
 plt.show()
 
 ind = 56
@@ -43,6 +43,6 @@ plt.plot(xt, pdf[ind]/scale, linewidth=3, ls='--')
 plt.axvline(scale*Y_test[ind], ls='--', color='k', linewidth=3)
 plt.xlabel('$y_{56}$', fontsize=20)
 plt.ylabel('$p(Y_{56}=y_{56}|X_{56}=x_{56})$', fontsize=20)
-plt.legend(['True', 'Estimated', 'measurement'])
+plt.legend(['True', 'Estimated', 'Measurement'])
 plt.show()
 

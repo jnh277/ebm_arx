@@ -22,7 +22,7 @@ def mse(y_true, y_mdl):
 # ---- Main script ----
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    N = 250
+    N = 500
     sd_w = 0.3
     sd_v = 0.3
     N_test = 500
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             "X_test": X_test,
             "Y_test": Y_test}
 
-    with open('results/chen_comparison/N250/data.pkl', "wb") as f:
+    with open('results/chen_comparison/N'+str(N)+'/data.pkl', "wb") as f:
         pickle.dump(data, f)
 
     fcn_train_mse = []
@@ -111,10 +111,10 @@ if __name__ == "__main__":
         print('EBM Train MSE: ', ebm_train_mse[exp])
         print('EBM Test MSE: ', ebm_test_mse[exp])
 
-        with open('results/chen_comparison/N250/fcn'+str(exp)+'.pkl',"wb") as f:
+        with open('results/chen_comparison/N'+str(N)+'/fcn'+str(exp)+'.pkl',"wb") as f:
             pickle.dump(net, f)
 
-        with open('results/chen_comparison/N250/ebm' + str(exp) + '.pkl', "wb") as f:
+        with open('results/chen_comparison/N'+str(N)+'/ebm' + str(exp) + '.pkl', "wb") as f:
             pickle.dump(net_ebm, f)
 
     print('Best results')

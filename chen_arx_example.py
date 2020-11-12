@@ -1,12 +1,11 @@
-# data generated using a second order ARX model
+# data generated using the chen model
 import pickle5 as pickle
 import numpy as np
 import torch
-import torch.utils.data as data
 import matplotlib.pyplot as plt
 import Models
 import scipy.linalg as linalg
-
+from Models import FullyConnectedNet
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")      # use gpu if available
 
 
@@ -113,6 +112,10 @@ if __name__ == "__main__":
     X_test = X_test/scale
     Y_test = Y_test/scale
 
+    net_fcn = FullyConnectedNet(n_hidden=150,n_interm_layers=4)
+    net_fcn.fit(X, Y)
+    yhat_fcn = net_fcn.predict(X_test)
+
     net = Models.EBM_ARX_net(use_double=False,feature_net_dim=100,predictor_net_dim=50, decay_rate=0.99, num_epochs=600)
     net.fit(X, Y)
     training_losses = net.training_losses
@@ -136,7 +139,8 @@ if __name__ == "__main__":
     #
     plt.plot(Y_test)
     plt.plot(yhat.detach())
-    plt.legend(['Meausrements','Predictions'])
+    plt.plot(yhat_fcn)
+    plt.legend(['Meausrements','Predictions ebm', 'pred fcn'])
     plt.title('Test set predictions')
     plt.xlabel('t')
     plt.ylabel('y')
@@ -172,3 +176,6 @@ if __name__ == "__main__":
 
         with open('results/chen_model/network.pkl',"wb") as f:
             pickle.dump(net, f)
+
+        with open('results/chen_model/fcn.pkl',"wb") as f:
+            pickle.dump(net_fcn, f)
