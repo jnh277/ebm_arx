@@ -50,33 +50,33 @@ plt.legend(['True distribution','Learned distribution'])
 plt.xlim([-1,1])
 plt.show()
 
-if noise_form == 'gaussian':    # then plot the predicted
-    Y = torch.tensor(data['Y'])
-    X = torch.tensor(data['X'])
-    yhat_init, yhat_samples, scores_samples = Models.init_predict(X[:49].unsqueeze(1).double(),
-                                                                  Y[:49].clone().detach().double().unsqueeze(1),
-                                                                  network.double(), 2028, [-1.0, 1.0])
-
-    # ind = np.argmax(scores_samples.detach(),1)
-    # yhat = yhat_
-
-    xt = scale * np.linspace(-1, 1, 2028)
-    dt = xt[1] - xt[0]
-    denom = scores_samples.exp().detach().sum(1) * dt
-    cdf = np.cumsum(scores_samples.exp().detach() / np.reshape(denom, (-1, 1)) * dt, axis=1)
-    u95 = xt[np.argmin(abs(cdf - 0.975), 1)]
-    l95 = xt[np.argmin(abs(cdf - 0.025), 1)]
-    u99 = xt[np.argmin(abs(cdf - 0.995), 1)]
-    l99 = xt[np.argmin(abs(cdf - 0.005), 1)]
-    u65 = xt[np.argmin(abs(cdf - 0.825), 1)]
-    l65 = xt[np.argmin(abs(cdf - 0.175), 1)]
-    plt.fill_between(np.arange(len(Y[:49])), u99, l99, alpha=0.1, color='b')
-    plt.fill_between(np.arange(len(Y[:49])), u95, l95, alpha=0.1, color='b')
-    plt.fill_between(np.arange(len(Y[:49])), u65, l65, alpha=0.1, color='b')
-    plt.plot(scale * Y[:49].detach(), color='red', ls='None', marker='*')
-    plt.plot(scale * yhat_init[:49].detach(), color='blue')
-    plt.xlabel('t', fontsize=20)
-    plt.ylabel('y', fontsize=20)
-    plt.xlim([15, 50])
-    plt.legend(['Measured', 'MAP', 'Predicted $p(Y_t=y_t | X_t = x_t)$'])
-    plt.show()
+# if noise_form == 'gaussian':    # then plot the predicted
+#     Y = torch.tensor(data['Y'])
+#     X = torch.tensor(data['X'])
+#     yhat_init, yhat_samples, scores_samples = Models.init_predict(X[:49].unsqueeze(1).double(),
+#                                                                   Y[:49].clone().detach().double().unsqueeze(1),
+#                                                                   network.double(), 2028, [-1.0, 1.0])
+#
+#     # ind = np.argmax(scores_samples.detach(),1)
+#     # yhat = yhat_
+#
+#     xt = scale * np.linspace(-1, 1, 2028)
+#     dt = xt[1] - xt[0]
+#     denom = scores_samples.exp().detach().sum(1) * dt
+#     cdf = np.cumsum(scores_samples.exp().detach() / np.reshape(denom, (-1, 1)) * dt, axis=1)
+#     u95 = xt[np.argmin(abs(cdf - 0.975), 1)]
+#     l95 = xt[np.argmin(abs(cdf - 0.025), 1)]
+#     u99 = xt[np.argmin(abs(cdf - 0.995), 1)]
+#     l99 = xt[np.argmin(abs(cdf - 0.005), 1)]
+#     u65 = xt[np.argmin(abs(cdf - 0.825), 1)]
+#     l65 = xt[np.argmin(abs(cdf - 0.175), 1)]
+#     plt.fill_between(np.arange(len(Y[:49])), u99, l99, alpha=0.1, color='b')
+#     plt.fill_between(np.arange(len(Y[:49])), u95, l95, alpha=0.1, color='b')
+#     plt.fill_between(np.arange(len(Y[:49])), u65, l65, alpha=0.1, color='b')
+#     plt.plot(scale * Y[:49].detach(), color='red', ls='None', marker='*')
+#     plt.plot(scale * yhat_init[:49].detach(), color='blue')
+#     plt.xlabel('t', fontsize=20)
+#     plt.ylabel('y', fontsize=20)
+#     plt.xlim([15, 50])
+#     plt.legend(['Measured', 'MAP', 'Predicted $p(Y_t=y_t | X_t = x_t)$'])
+#     plt.show()

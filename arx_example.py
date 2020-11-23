@@ -147,6 +147,3 @@ if __name__ == "__main__":
 
         with open('results/arx_example/network.pkl',"wb") as f:
             pickle.dump(net, f)
-
-# with open('results/arx_example/network.pkl','rb') as f:
-#     net2 = pickle.load(f)
