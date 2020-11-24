@@ -75,7 +75,7 @@ if __name__ == "__main__":
     N = 1000
     N_test = 200
     noise_form = 'gaussian'
-    save_results = False
+    save_results = True
     hidden_dim = 100
 
     np.random.seed(117)      # set numpy seed to get consistent data
