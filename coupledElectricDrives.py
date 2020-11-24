@@ -79,7 +79,7 @@ if __name__ == "__main__":
     net.fit(phi_est, yEst)
     training_losses = net.training_losses
 
-    net_fcn = FullyConnectedNet(n_hidden=150, n_interm_layers=4)
+    net_fcn = FullyConnectedNet(n_hidden=150, n_interm_layers=4, decay_rate=0.99)
     net_fcn.fit(phi_est, yEst)
     yhat_fcn = net_fcn.predict(phi_val)
 

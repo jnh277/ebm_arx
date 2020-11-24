@@ -9,12 +9,17 @@ import Models
 import numpy as np
 import scipy.stats as stats
 import pandas as pd
+import argparse
 
-
-
+parser = argparse.ArgumentParser(description='Estimate NARX model for different n features / n samples rate.')
+parser.add_argument('-m', '--noise_model', default='gaussian',
+                    help='noise model default=gaussian, other options are'
+                         'bimodal, and cauchy')
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")      # use gpu if available
+
+args, unk = parser.parse_known_args()
 
 N = 10000
 batch_size = 64
@@ -27,7 +32,7 @@ stds[0, 0] = 0.4
 stds[0, 1] = 0.6
 stds[0, 2] = 1.0
 
-noise_form = 'cauchy'            # this can be 'gaussian', or 'bimodal', or 'cauchy'
+noise_form = args.noise_model       # this can be 'gaussian', or 'bimodal', or 'cauchy'
 save_results = False
 
 # simulate a really simple arx system

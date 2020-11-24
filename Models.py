@@ -426,7 +426,7 @@ class FullyConnectedNet(object):
     def predict(self, X):
         X = np.atleast_2d(X)
         n_total, n_features = X.shape
-        X = torch.from_numpy(X).to(dtype=torch.float32)
+        X = torch.from_numpy(X).to(dtype=torch.float32,device=self.device)
         if n_total < self.batch_size:
             y = self.net(X).detach().cpu().flatten().numpy()
         else:
