@@ -84,7 +84,7 @@ class GenerateChenData(object):
 
 # ---- Main script ----
 if __name__ == "__main__":
-    N = 1000
+    N = 500
     N_test = 500
     hidden_dim = 100
 
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     X_test = X_test/scale
     Y_test = Y_test/scale
 
-    net_fcn = FullyConnectedNet(n_hidden=150,n_interm_layers=4)
+    net_fcn = FullyConnectedNet(n_hidden=150,n_interm_layers=4, epochs=600, decay_rate=0.99)
     net_fcn.fit(X, Y)
     yhat_fcn = net_fcn.predict(X_test)
 
@@ -171,11 +171,11 @@ if __name__ == "__main__":
                 "Y":Y,
                 "X_test":X_test,
                 "Y_test":Y_test}
-        with open('results/chen_model/data.pkl',"wb") as f:
+        with open('results/chen_model/data2.pkl',"wb") as f:
             pickle.dump(data,f)
 
-        with open('results/chen_model/network.pkl',"wb") as f:
+        with open('results/chen_model/network2.pkl',"wb") as f:
             pickle.dump(net, f)
 
-        with open('results/chen_model/fcn.pkl',"wb") as f:
+        with open('results/chen_model/fcn2.pkl',"wb") as f:
             pickle.dump(net_fcn, f)

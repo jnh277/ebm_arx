@@ -1,10 +1,17 @@
 import torch
 import matplotlib.pyplot as plt
 import Models
-import numpy as np
 import pandas as pd
 import scipy.stats as stats
+import argparse
 
+parser = argparse.ArgumentParser(description='Estimate NARX model for different n features / n samples rate.')
+parser.add_argument('-m', '--noise_model', default='gaussian',
+                    help='noise model default=gaussian, other options are'
+                         'bimodal, and cauchy')
+
+
+args, unk = parser.parse_known_args()
 
 noise_form = 'gaussian'            # this can be 'gaussian', or 'bimodal', or 'cauchy'
 scale = 2.0
@@ -47,7 +54,6 @@ plt.xlabel('$e_t$',fontsize=20)
 plt.ylabel('$p(e_t)$',fontsize=20)
 # plt.title("noise distribution")
 plt.legend(['True distribution','Learned distribution'])
-plt.xlim([-1,1])
 plt.show()
 
 # if noise_form == 'gaussian':    # then plot the predicted

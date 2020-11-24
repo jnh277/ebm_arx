@@ -22,15 +22,20 @@ pdf, cdf, u95, l95, u99, l99, u65, l65, xt = net.pdf_predict(X_test)
 xt = xt*scale
 yhat, _ = net.predict(X_test)
 
-plt.plot(scale * Y_test, color='red', ls='None', marker='*')
-plt.plot(scale * yhat, color='blue')
-plt.fill_between(np.arange(len(Y_test)),scale*u99,scale*l99, alpha=0.1, color='b')
+mu = scale * torch.from_numpy(X_test).mm(torch.tensor([-0.7, 1.5, 0.5, 1.0],dtype=torch.double).unsqueeze(1))
+
+plt.plot(scale * Y_test, color='red', ls='None', marker='*', label='Measured')
+plt.plot(scale * yhat, color='blue', label='EBM MAP')
+plt.fill_between(np.arange(len(Y_test)),scale*u99,scale*l99, alpha=0.1, color='b', label='EBM $p(Y_t=y_t | X_t = x_t)$')
 plt.fill_between(np.arange(len(Y_test)),scale*u95,scale*l95, alpha=0.1, color='b')
 plt.fill_between(np.arange(len(Y_test)),scale*u65,scale*l65, alpha=0.1, color='b')
+plt.plot(mu, color='orange', ls='-.', label='True mean')
+plt.plot(mu+2*0.3, color='orange', ls='--', label='True +/- 2$\sigma$')
+plt.plot(mu-2*0.3, color='orange', ls='--')
 plt.xlabel('t', fontsize=20)
 plt.ylabel('y', fontsize=20)
 plt.xlim([50, 60])
-plt.legend(['Measured', 'MAP','Predicted $p(Y_t=y_t | X_t = x_t)$'])
+plt.legend()
 plt.show()
 
 ind = 56

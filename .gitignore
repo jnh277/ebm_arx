@@ -101,6 +101,11 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
+results/chen_comp/**/*.pkl
+results/ced_comp/*.pkl
+
+
+
 # Environments
 .env
 .venv
