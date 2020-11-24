@@ -13,8 +13,6 @@ args, unk = parser.parse_known_args()
 N = args.data_length
 sigma = max(min(args.sigma, 1.0), 0.1)
 
-with open('results/chen_comparison/sigma' + str(int(sigma * 10)) + 'N' + str(N) + '/data.pkl', "rb") as f:
-    data = pickle.load(f)
 df = pd.read_csv('results/chen_comparison/sigma'+str(int(sigma*10))+'N'+str(N)+'/evals.csv')
 df2 = df.dropna() # remove NaNs which sometimes occured due to training of EB-NARX model
 
