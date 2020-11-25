@@ -59,9 +59,9 @@ plt.show()
 
 
 plt.plot(yVal, color='red', ls='None', marker='*', label='measured')
-plt.plot(yhat, color='blue',label='EBM MAP')
+plt.plot(yhat, color='blue',label='EB-NARX MAP')
 plt.plot(yhat_fcn, color='orange', ls='-.', label='FCN mean')
-plt.fill_between(np.arange(len(yVal)), u99, l99, alpha=0.1, color='b', label='EBM $p(Y_t=y_t | X_t = x_t)$')
+plt.fill_between(np.arange(len(yVal)), u99, l99, alpha=0.1, color='b', label='EB-NARX $p(Y_t=y_t | X_t = x_t)$')
 plt.fill_between(np.arange(len(yVal)), u95, l95, alpha=0.1, color='b')
 plt.fill_between(np.arange(len(yVal)), u65, l65, alpha=0.1, color='b')
 plt.plot(yhat_fcn+fcn_std*2, color='orange', ls='--', label='FCN +/- 2 stds')
@@ -73,9 +73,9 @@ plt.legend()
 # plt.legend(['measured', 'MAP', 'predicted $p(Y_t=y_t | X_t = x_t)$', 'FCN +/- 2stds'])
 plt.show()
 
-ind = 57 # this one is bimodal
-# ind = 40 # this one is unimodal but very non gaussian
-# ind = 56
+
+
+ind = 40 # this one is unimodal but very non gaussian
 p_fcn = stats.norm(yhat_fcn[ind], fcn_std).pdf(xt)
 dt = xt[1] - xt[0]
 plt.plot(xt, pdf[ind] / (pdf[ind]*dt).sum())
@@ -83,6 +83,28 @@ plt.plot(xt, p_fcn, ls='--')
 plt.axvline(yVal[ind], ls='--', color='k')
 plt.xlabel('$y_{'+str(ind)+'}$', fontsize=20)
 plt.ylabel('$p(y_{'+str(ind)+'}|X_{'+str(ind)+'}$)', fontsize=20)
-plt.legend(['EBM', 'FCN', 'Measurement'], fontsize=14)
+plt.legend(['EB-NARX', 'FCN', 'Measurement'], fontsize=14)
+plt.show()
+
+ind = 57 # this one is bimodal
+p_fcn = stats.norm(yhat_fcn[ind], fcn_std).pdf(xt)
+dt = xt[1] - xt[0]
+plt.plot(xt, pdf[ind] / (pdf[ind]*dt).sum())
+plt.plot(xt, p_fcn, ls='--')
+plt.axvline(yVal[ind], ls='--', color='k')
+plt.xlabel('$y_{'+str(ind)+'}$', fontsize=20)
+plt.ylabel('$p(y_{'+str(ind)+'}|X_{'+str(ind)+'}$)', fontsize=20)
+plt.legend(['EB-NARX', 'FCN', 'Measurement'], fontsize=14)
+plt.show()
+
+ind = 60 # non-gaussian uni modal
+p_fcn = stats.norm(yhat_fcn[ind], fcn_std).pdf(xt)
+dt = xt[1] - xt[0]
+plt.plot(xt, pdf[ind] / (pdf[ind]*dt).sum())
+plt.plot(xt, p_fcn, ls='--')
+plt.axvline(yVal[ind], ls='--', color='k')
+plt.xlabel('$y_{'+str(ind)+'}$', fontsize=20)
+plt.ylabel('$p(y_{'+str(ind)+'}|X_{'+str(ind)+'}$)', fontsize=20)
+plt.legend(['EB-NARX', 'FCN', 'Measurement'], fontsize=14)
 plt.show()
 

@@ -14,7 +14,7 @@ N = args.data_length
 sigma = max(min(args.sigma, 1.0), 0.1)
 
 df = pd.read_csv('results/chen_comparison/sigma'+str(int(sigma*10))+'N'+str(N)+'/evals.csv')
-df2 = df.dropna() # remove NaNs which sometimes occured due to training of EB-NARX model
+df2 = df.dropna()               # remove NaNs which sometimes occured due to training of EB-NARX model
 
 
 print("FCN BEST MSE: ", df2['fcn_test_mse'].min())
