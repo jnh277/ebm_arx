@@ -1,7 +1,6 @@
 import pandas as pd
 
 df = pd.read_csv('results/ced_comp/evals.csv')
-df.to_csv('results/ced_comp/evals.csv')
 df2 = df.dropna()
 
 print("FCN BEST MSE: ", df2['fcn_test_mse'].min())
