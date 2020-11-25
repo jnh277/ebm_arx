@@ -47,7 +47,7 @@ plt.legend()
 plt.show()
 
 
-ind = 43
+ind = 53
 
 dt = xt[1] - xt[0]
 p_fcn = stats.norm(yhat_fcn[ind]*scale, fcn_std).pdf(xt)
