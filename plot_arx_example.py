@@ -26,7 +26,7 @@ mu = scale * torch.from_numpy(X_test).mm(torch.tensor([-0.7, 1.5, 0.5, 1.0],dtyp
 
 plt.plot(scale * Y_test, color='red', ls='None', marker='*', label='Measured')
 plt.plot(scale * yhat, color='blue', label='EB-NARX MAP')
-plt.fill_between(np.arange(len(Y_test)),scale*u99,scale*l99, alpha=0.1, color='b', label='EB-NARX $p(Y_t=y_t | X_t = x_t)$')
+plt.fill_between(np.arange(len(Y_test)),scale*u99,scale*l99, alpha=0.1, color='b', label=r'EB-NARX $p_{\theta}(y_t | x_t)$')
 plt.fill_between(np.arange(len(Y_test)),scale*u95,scale*l95, alpha=0.1, color='b')
 plt.fill_between(np.arange(len(Y_test)),scale*u65,scale*l65, alpha=0.1, color='b')
 plt.plot(mu, color='orange', ls='-.', label='True mean')
@@ -47,7 +47,7 @@ plt.fill_between(xt, p_true, 0 * p_true, alpha=0.3)
 plt.plot(xt, pdf[ind]/scale, linewidth=3, ls='--')
 plt.axvline(scale*Y_test[ind], ls='--', color='k', linewidth=3)
 plt.xlabel('$y_{56}$', fontsize=20)
-plt.ylabel('$p(Y_{56}=y_{56}|X_{56}=x_{56})$', fontsize=20)
+plt.ylabel(r'$p_\theta(y_{56}|x_{56})$', fontsize=20)
 plt.legend(['True', 'Estimated', 'Measurement'])
 plt.show()
 
