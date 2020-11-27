@@ -4,6 +4,8 @@ import Models
 import pandas as pd
 import scipy.stats as stats
 import argparse
+import scipy.linalg as linalg
+import numpy as np
 
 parser = argparse.ArgumentParser(description='Estimate NARX model for different n features / n samples rate.')
 parser.add_argument('-m', '--noise_model', default='gaussian',
@@ -13,7 +15,7 @@ parser.add_argument('-m', '--noise_model', default='gaussian',
 
 args, unk = parser.parse_known_args()
 
-noise_form = 'gaussian'            # this can be 'gaussian', or 'bimodal', or 'cauchy'
+noise_form = args.noise_model            # this can be 'gaussian', or 'bimodal', or 'cauchy'
 scale = 2.0
 
 network = Models.ScalarNet(hidden_dim=50)
@@ -21,10 +23,21 @@ network = Models.ScalarNet(hidden_dim=50)
 network.load_state_dict(torch.load('results/scalar_example/network_'+noise_form+'.pt'))
 data = pd.read_csv('results/scalar_example/data_'+noise_form+'.csv')
 
+# calculate the least-squares solution
+estim_param, _resid, _rank, _s = linalg.lstsq(np.expand_dims(data['X'],1), np.expand_dims(data['Y'],1))
+e_lsq = np.expand_dims(data['X'],1) @ estim_param - np.expand_dims(data['Y'],1)
+mu_lsq = e_lsq.mean()
+std_lsq = e_lsq.std()
+print('Least-squares std: ',std_lsq)
+
 ## plot the estimated distribution
 x0 = 0.0
 x_test = x0*torch.ones((500,1))
 y_test = torch.linspace(-0.5,0.5,500).unsqueeze(1)
+
+
+# lsq distribution
+p_lsq = stats.norm(mu_lsq * scale, std_lsq * scale).pdf(scale * y_test.detach())
 
 scores = network(x_test,y_test)
 dt = y_test[1]-y_test[0]
@@ -50,39 +63,9 @@ elif noise_form == 'cauchy':
 plt.plot(scale*y_test.detach(),p_true,linewidth=4)
 plt.fill_between(scale*y_test.squeeze().detach(),p_true.squeeze(),p_true.squeeze()*0,color='blue',alpha=0.3)
 plt.plot(scale*y_test.detach(),scores.exp().detach()/denom,linewidth=4,ls='--')
+plt.plot(scale * y_test.detach(),p_lsq.squeeze(),linewidth=4,ls='-.')
 plt.xlabel('$e_t$',fontsize=20)
 plt.ylabel('$p(e_t)$',fontsize=20)
 # plt.title("noise distribution")
-plt.legend(['True distribution','Learned distribution'])
+plt.legend(['True distribution','Learned distribution','Least-squares'])
 plt.show()
-
-# if noise_form == 'gaussian':    # then plot the predicted
-#     Y = torch.tensor(data['Y'])
-#     X = torch.tensor(data['X'])
-#     yhat_init, yhat_samples, scores_samples = Models.init_predict(X[:49].unsqueeze(1).double(),
-#                                                                   Y[:49].clone().detach().double().unsqueeze(1),
-#                                                                   network.double(), 2028, [-1.0, 1.0])
-#
-#     # ind = np.argmax(scores_samples.detach(),1)
-#     # yhat = yhat_
-#
-#     xt = scale * np.linspace(-1, 1, 2028)
-#     dt = xt[1] - xt[0]
-#     denom = scores_samples.exp().detach().sum(1) * dt
-#     cdf = np.cumsum(scores_samples.exp().detach() / np.reshape(denom, (-1, 1)) * dt, axis=1)
-#     u95 = xt[np.argmin(abs(cdf - 0.975), 1)]
-#     l95 = xt[np.argmin(abs(cdf - 0.025), 1)]
-#     u99 = xt[np.argmin(abs(cdf - 0.995), 1)]
-#     l99 = xt[np.argmin(abs(cdf - 0.005), 1)]
-#     u65 = xt[np.argmin(abs(cdf - 0.825), 1)]
-#     l65 = xt[np.argmin(abs(cdf - 0.175), 1)]
-#     plt.fill_between(np.arange(len(Y[:49])), u99, l99, alpha=0.1, color='b')
-#     plt.fill_between(np.arange(len(Y[:49])), u95, l95, alpha=0.1, color='b')
-#     plt.fill_between(np.arange(len(Y[:49])), u65, l65, alpha=0.1, color='b')
-#     plt.plot(scale * Y[:49].detach(), color='red', ls='None', marker='*')
-#     plt.plot(scale * yhat_init[:49].detach(), color='blue')
-#     plt.xlabel('t', fontsize=20)
-#     plt.ylabel('y', fontsize=20)
-#     plt.xlim([15, 50])
-#     plt.legend(['Measured', 'MAP', 'Predicted $p(Y_t=y_t | X_t = x_t)$'])
-#     plt.show()
