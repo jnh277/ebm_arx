@@ -6,10 +6,10 @@ import scipy.stats as stats
 import pickle5 as pickle
 
 
-with open('results/arx_example/data.pkl','rb') as f:
+with open('results/arx_example/data2.pkl','rb') as f:
     data = pickle.load(f)
 
-with open('results/arx_example/network.pkl','rb') as f:
+with open('results/arx_example/network2.pkl','rb') as f:
     net = pickle.load(f)
 
 scale = data['scale']
@@ -38,9 +38,11 @@ plt.xlim([50, 60])
 plt.legend()
 plt.show()
 
+# ind = 56
 ind = 56
 mu = scale * (torch.tensor([-0.7, 1.5, 0.5, 1.0]) * X_test[ind, :]).sum()
-p_true = stats.norm(mu, 0.3).pdf(xt)
+# p_true = stats.norm(mu, 0.3).pdf(xt)
+p_true = 0.4*stats.norm(mu, 0.3).pdf(xt) + 0.6 * stats.norm(mu, 0.1).pdf(xt)
 
 plt.plot(xt, p_true, linewidth=3)
 plt.fill_between(xt, p_true, 0 * p_true, alpha=0.3)

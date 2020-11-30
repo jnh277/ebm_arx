@@ -23,6 +23,11 @@ class GenerateARXData(object):
     def _noise_model(self):
         if self.noise_form == 'clipped_gaussian':
             e = max(min(self.sd_v*1.5,self.sd_v * np.random.randn()),-self.sd_v*1.5)
+        elif self.noise_form == 'mixture':
+            if np.random.uniform() > 0.4:
+                e = self.sd_v / 3 * np.random.randn()
+            else:
+                e = self.sd_v * np.random.randn()
         elif self.noise_form == 'bimodal':
             if np.random.uniform() > 0.5:
                 e = self.sd_v * np.random.randn() + self.sd_v*2
@@ -74,7 +79,7 @@ class GenerateARXData(object):
 if __name__ == "__main__":
     N = 1000
     N_test = 200
-    noise_form = 'gaussian'
+    noise_form = 'mixture'
     save_results = True
     hidden_dim = 100
 
@@ -142,8 +147,8 @@ if __name__ == "__main__":
                 "Y":Y,
                 "X_test":X_test,
                 "Y_test":Y_test}
-        with open('results/arx_example/data.pkl',"wb") as f:
+        with open('results/arx_example/data2.pkl',"wb") as f:
             pickle.dump(data,f)
 
-        with open('results/arx_example/network.pkl',"wb") as f:
+        with open('results/arx_example/network2.pkl',"wb") as f:
             pickle.dump(net, f)
