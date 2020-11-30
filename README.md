@@ -29,7 +29,7 @@ past outputs and inputs is modelled using a nonlinear autoregressive eXogenous (
         ```bash
         python scalar_varying.py
         ```
-- A simulated second order linear ARX model (section 4.2 of paper)
+- A simulated second order linear ARX model with Gaussian mixture noise (section 4.2 of paper)
     ```bash
     python arx_example.py # skip this line to use pregenerated results
     python plot_arx_example.py
