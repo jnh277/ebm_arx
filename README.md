@@ -2,7 +2,7 @@
 
 Companion code to the paper:
 ```
-Deep Energy-Based NARX Models
+Deep Energy-Based NARX Models https://arxiv.org/abs/2012.04136
 ```
 
 The paper gives four examples of using deep Energy Based Models to predict the conditional
